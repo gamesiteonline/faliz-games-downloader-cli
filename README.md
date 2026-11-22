@@ -37,8 +37,11 @@
 ### ◈ Discover
 
 - Live catalog synchronization
+- Featured, trending, and latest discovery views with honest metadata fallback
 - Top 100 highest-rated games
 - Offline cache fallback
+- Genre and platform browsing
+- Favorites, wishlist, recently viewed, download history, and local library metadata
 - Refresh on demand
 
 </td>
@@ -60,6 +63,7 @@
 - Live speed and ETA
 - `P` pause/resume
 - `C` cancel and resume later
+- Configurable retry/backoff, request timeout, SHA-256 verification, and disk-space preflight
 
 </td>
 </tr>
@@ -79,6 +83,9 @@
 | Recovery | Partial-file resume when the server supports byte ranges | `RESUMABLE` |
 | Controls | Pause, resume, cancel, and `Ctrl+C` interruption | `ACTIVE` |
 | Storage | Downloads folder support for desktop and Termux | `MOBILE READY` |
+| Discovery | Featured, trending/latest fallback, genre and platform browsing | `PRO` |
+| Persistence | Settings, favorites, wishlist, recents, history, and library under `~/.faliz-games/` | `READY` |
+| Reliability | Timeout, transient retry/backoff, safe 416, checksum and disk-space checks | `HARDENED` |
 | UI | Adaptive terminal width, colors, spinners, bars, and metadata cards | `PRO` |
 
 ## ▰ Installation
@@ -144,6 +151,9 @@ Ctrl+C      Interrupt safely and keep resumable data
 6. Choose whether to continue browsing, return to the menu, or exit.
 
 Downloads are streamed directly to disk. A `.part` file is preserved when a transfer is canceled or interrupted, then reused for resume when the server supports range requests.
+
+## ▰ Settings and local data
+The Pro release stores settings and lightweight metadata in `~/.faliz-games/`. The interactive **Settings** screen controls download directory, maximum concurrency (default `1`), catalog URL, retry count, request timeout, and animation preference. Downloaded files are never auto-executed. A catalog checksum is checked when a record provides `sha256`, `SHA256`, `checksum`, or `hash`.
 
 ## ▰ Live catalog and cache
 

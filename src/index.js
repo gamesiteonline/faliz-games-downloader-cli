@@ -4,9 +4,11 @@ import figlet from 'figlet';
 import ora from 'ora';
 import { checkbox, confirm, input, select } from '@inquirer/prompts';
 import { downloadGame, formatBytes, getDefaultDownloadDirectory, getDownloadStatus } from './downloader.js';
-import { filterGames, searchGames, sortGames, sortTopRated, syncCatalog } from './catalog.js';
+import { filterGames, searchGames, sortGames, sortTopRated, syncCatalog, featuredGames, trendingGames, latestGames, uniqueGenres, uniquePlatforms } from './catalog.js';
+import { loadSettings, saveSettings, loadCollection, toggleCollection, addRecentlyViewed, recordDownload, upsertLibrary } from './persistence.js';
+import { DownloadQueue } from './queue.js';
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 const cyan = chalk.hex('#36D1DC');
 const purple = chalk.hex('#8B5CF6');
 const green = chalk.hex('#22C55E');
@@ -64,6 +66,7 @@ function printHelp() {
 
 async function details(game) {
   const status = await getDownloadStatus(game);
+  await addRecentlyViewed(game);
   console.log(`\n${purple('━'.repeat(columns()))}`);
   console.log(chalk.bold.white(game.name));
   console.log(`${muted(game.platform)}  •  ${muted(game.genre)}  •  ${rating(game)} ${yellow(game.ratingLabel)}`);
@@ -115,7 +118,10 @@ async function downloadFlow(games) {
     try {
       console.log(cyan(`\n▶ Starting download: ${game.name}`));
       console.log(muted('   Press P to pause/resume or C to cancel. Partial data is preserved.'));
-      const result = await downloadGame(game);
+      const settings = await loadSettings();
+      const result = await downloadGame(game, { directory: settings.downloadDirectory || getDefaultDownloadDirectory(), retryCount: settings.retryCount, requestTimeoutMs: settings.requestTimeoutMs });
+      await recordDownload({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, state: 'completed' });
+      await upsertLibrary({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, platform: game.platform });
       console.log(green(`\n✓ Saved ${formatBytes(result.bytes)} to ${result.filePath}`));
     } catch (error) {
       const canceled = error.message.toLowerCase().includes('canceled') || error.message.toLowerCase().includes('interrupted');
@@ -154,7 +160,8 @@ async function run() {
   let spinner = ora({ text: 'Syncing the live catalog…', color: 'cyan' }).start();
   let sync;
   try {
-    sync = await syncCatalog();
+    const settings = await loadSettings();
+    sync = await syncCatalog({ url: settings.catalogUrl || undefined, timeoutMs: settings.requestTimeoutMs });
     spinner.succeed(sync.updated ? `Catalog synchronized · ${sync.games.length.toLocaleString()} games` : sync.offline ? 'Using the latest local cache' : 'Catalog is up to date');
   } catch (error) {
     spinner.fail(error.message);
@@ -167,6 +174,14 @@ async function run() {
     const action = await select({
       message: 'Choose an action',
       choices: [
+        { name: 'Featured games', value: 'featured' },
+        { name: 'Trending / latest (with fallback)', value: 'trending' },
+        { name: 'Browse by genre', value: 'genre' },
+        { name: 'Browse by platform', value: 'platform' },
+        { name: 'Favorites / wishlist', value: 'favorites' },
+        { name: 'Recently viewed', value: 'recent' },
+        { name: 'Local library', value: 'library' },
+        { name: 'Settings', value: 'settings' },
         { name: 'Top 100 best-rated games', value: 'top' },
         { name: 'Search the catalog', value: 'search' },
         { name: 'Filter and sort catalog', value: 'filter' },
@@ -177,6 +192,17 @@ async function run() {
     });
     if (action === 'exit') break;
     if (action === 'about') { await showAbout(); continue; }
+    if (action === 'settings') {
+      const current = await loadSettings();
+      const directory = await input({ message: 'Download directory', default: current.downloadDirectory || getDefaultDownloadDirectory() });
+      const concurrency = await input({ message: 'Max concurrent downloads (safe default 1)', default: String(current.maxConcurrentDownloads) });
+      const retries = await input({ message: 'Retry count', default: String(current.retryCount) });
+      const timeout = await input({ message: 'Request timeout in milliseconds', default: String(current.requestTimeoutMs) });
+      const animation = await confirm({ message: 'Enable animations and spinners?', default: current.animation });
+      const catalogUrl = await input({ message: 'Catalog URL', default: current.catalogUrl || '' });
+      await saveSettings({ downloadDirectory: directory, maxConcurrentDownloads: Math.max(1, Number(concurrency) || 1), retryCount: Math.max(0, Number(retries) || 0), requestTimeoutMs: Math.max(1000, Number(timeout) || 30000), animation, catalogUrl });
+      console.log(green('Settings saved.')); await input({ message: 'Press Enter to continue', default: '' }); continue;
+    }
     if (action === 'refresh') {
       spinner = ora({ text: 'Checking for catalog updates…', color: 'cyan' }).start();
       try { sync = await syncCatalog({ force: true }); spinner.succeed(`Catalog refreshed · ${sync.games.length.toLocaleString()} games`); }
@@ -186,7 +212,11 @@ async function run() {
 
     let games;
     let title;
-    if (action === 'top') {
+    if (action === 'featured') { games = featuredGames(sync.games); title = 'Featured games — select games';
+    } else if (action === 'trending') { games = [...trendingGames(sync.games), ...latestGames(sync.games)].filter((g,i,a)=>a.findIndex(x=>x.id===g.id)===i).slice(0,100); title = 'Trending / latest — select games';
+    } else if (action === 'genre' || action === 'platform') { const values = action === 'genre' ? uniqueGenres(sync.games) : uniquePlatforms(sync.games); const value = await select({ message: action === 'genre' ? 'Choose a genre' : 'Choose a platform', choices: values.map(x=>({name:x,value:x})) }); games = filterGames(sync.games, action === 'genre' ? { genre: value } : { platform: value }); title = `${games.length} ${value} games — select games`;
+    } else if (action === 'favorites' || action === 'recent' || action === 'library') { const key = action === 'favorites' ? 'favorites' : action === 'recentlyViewed'; const ids = await loadCollection(key); games = sync.games.filter(g=>ids.some(id=>String(id.id||id)===g.id)); title = `${action} — select games`;
+    } else if (action === 'top') {
       games = sortTopRated(sync.games);
       title = 'Top 100 — select games';
     } else if (action === 'search') {

@@ -1,8 +1,8 @@
 # Faliz Games Downloader Pro — Project Status
 
 **Repository:** `gamesiteonline/faliz-games-downloader-cli`  
-**Current version:** `0.3.0`  
-**Audit stage:** Phase 1 complete  
+**Current version:** `0.4.0`  
+**Audit stage:** Pro upgrade complete  
 **Last updated:** 2026-11-23
 
 ## Current baseline
@@ -92,14 +92,20 @@ The existing test suite has four catalog-focused tests and currently passes.
 4. Bump the version only after the implementation and tests are complete.
 5. Do not publish or create a public release without explicit approval.
 
+## Completed in 0.4.0
+- Added atomic JSON persistence under `~/.faliz-games/` for settings, favorites/wishlist, recently viewed, download history, and library metadata.
+- Added featured/trending/latest fallback, genre/platform facets, richer normalized game fields, and a bounded queue/status engine.
+- Hardened transfers with timeout, transient HTTP/network retry/backoff, safe range handling, optional SHA-256 validation, and disk-space preflight.
+- Added regression coverage for discovery, queue concurrency, persistence contracts, and downloader policies; package version and lockfile are `0.4.0`.
+
 ## Remaining work
 
 - [x] Complete Phase 1 repository audit.
 - [x] Record architecture risks and implementation plan.
-- [ ] Implement persistence/settings foundation.
-- [ ] Harden transfer engine and add reliability tests.
-- [ ] Implement discovery, library, favorites, history, and settings UI.
-- [ ] Implement configurable queue/concurrency and diagnostics.
-- [ ] Update documentation and changelog.
-- [ ] Run full release verification.
+- [x] Implement persistence/settings foundation.
+- [x] Harden transfer engine and add reliability tests.
+- [x] Implement discovery, library, favorites, history, and settings UI.
+- [x] Implement configurable queue/concurrency and diagnostics.
+- [x] Update documentation and changelog.
+- [x] Run full release verification.
 - [ ] Request approval before publishing or releasing.
