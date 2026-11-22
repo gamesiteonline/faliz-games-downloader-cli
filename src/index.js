@@ -35,6 +35,18 @@ function wrapText(value, width = columns() - 4) {
 function divider(char = '─') { return muted(char.repeat(columns())); }
 function logo() { return cyan(figlet.textSync('FALIZ GAMES', { font: 'Small', horizontalLayout: 'default' })); }
 function link(label, url) { return `\u001b]8;;${url}\u0007${cyan(label)}\u001b]8;;\u0007`; }
+function clip(value, width) { return String(value ?? '').slice(0, Math.max(1, width)).padEnd(Math.max(1, width)); }
+function progressBar(value, width = 18, color = cyan) {
+  const filled = Math.max(0, Math.min(width, Math.round(value * width)));
+  return color('━'.repeat(filled)) + muted('─'.repeat(width - filled));
+}
+function dashboardPanel(title, rows, width) {
+  const top = chalk.hex('#26345E')(`╭─ ${title} ${'─'.repeat(Math.max(0, width - title.length - 5))}╮`);
+  const body = rows.map(row => chalk.hex('#26345E')('│ ') + row + chalk.hex('#26345E')(' '.repeat(Math.max(0, width - 3 - stripAnsi(row).length)) + '│'));
+  const bottom = chalk.hex('#26345E')(`╰${'─'.repeat(width - 1)}╯`);
+  return [top, ...body, bottom].join('\n');
+}
+function stripAnsi(value) { return String(value).replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\u001b\][^\u0007]*\u0007/g, ''); }
 function rating(game) {
   const filled = Math.max(0, Math.min(5, Math.round(game.rating / 2)));
   return yellow('★'.repeat(filled) + muted('☆'.repeat(5 - filled)));
@@ -52,12 +64,56 @@ function gameLabel(game, index) {
 
 function header(sync) {
   console.clear();
-  console.log(logo());
-  console.log(chalk.bold('  A fast, focused game catalog for your terminal.'));
+  const width = columns();
+  const side = Math.min(20, Math.max(16, Math.floor(width * 0.2)));
+  const main = width - side - 3;
+  const featured = featuredGames(sync.games).slice(0, 3);
+  const top = sortTopRated(sync.games, 5);
   const state = sync.offline ? yellow('● Offline cache') : green('● Live catalog');
-  console.log(`  ${state}  ${muted(`${sync.games.length.toLocaleString()} games`)}  ${muted(`v${VERSION}`)}`);
-  console.log(`  ${muted(`Downloads: ${getDefaultDownloadDirectory()}`)}`);
-  console.log(divider());
+  console.log(chalk.bgHex('#0B1226').white(` ${clip('FALIZ GAMES  /  GAME LIBRARY', width - 2)} `));
+  console.log();
+  const sidebar = [
+    chalk.hex('#8EA4D8')('LIBRARY'),
+    `${cyan('▣')} ${chalk.white('Dashboard')}`,
+    `${muted('▱')} Recent`,
+    `${muted('▱')} All games ${muted(sync.games.length)}`,
+    `${muted('▱')} Top 100`,
+    '',
+    chalk.hex('#8EA4D8')('DISCOVER'),
+    `${muted('⌕')} Search`,
+    `${muted('◈')} Featured`,
+    `${muted('◆')} Trending`,
+    `${muted('▤')} Genres`,
+    '',
+    chalk.hex('#8EA4D8')('SYSTEM'),
+    `${muted('⇩')} Downloads`,
+    `${muted('⚙')} Settings`,
+    `${muted('ⓘ')} About`,
+  ].map(line => ` ${clip(line, side - 2)}`).join('\n');
+  const featuredRows = featured.length ? featured.map((game, i) => `${purple(`${String(i + 1).padStart(2, '0')}`)} ${chalk.white(clip(game.name, Math.max(12, main - 28)))} ${rating(game)} ${yellow(game.rating.toFixed(1))}`) : [muted('No featured games available')];
+  const summaryRows = [
+    `${cyan('▰')} ${chalk.bold(String(sync.games.length.toLocaleString()))} ${muted('games indexed')}   ${purple('✦')} ${chalk.bold(String(uniqueGenres(sync.games).length))} ${muted('genres')}`,
+    `${green('●')} ${state}   ${muted(`v${VERSION}`)}`,
+    `${muted('⇩')} ${clip(getDefaultDownloadDirectory(), Math.max(20, main - 25))}`,
+  ];
+  const topRows = top.length ? top.slice(0, 4).map((game, i) => `${yellow(String(i + 1).padStart(2, '0'))} ${chalk.white(clip(game.name, Math.max(12, main - 30)))} ${progressBar(Math.min(1, game.rating / 10), 12, i % 2 ? purple : cyan)} ${yellow(game.rating.toFixed(1))}`) : [muted('No ratings available')];
+  const left = sidebar.split('\n');
+  const right = [
+    dashboardPanel('CATALOG PULSE', summaryRows, main),
+    '',
+    dashboardPanel('RECENTLY PLAYED BY THE COMMUNITY', featuredRows, main),
+    '',
+    dashboardPanel('TOP-RATED THIS MONTH', topRows, main),
+  ];
+  const maxLines = Math.max(left.length, right.length);
+  for (let i = 0; i < maxLines; i += 1) {
+    const l = left[i] ?? ' '.repeat(side);
+    const r = right[i] ?? '';
+    console.log(chalk.hex('#172442')(`│${clip(l, side)}│`) + '  ' + r);
+  }
+  console.log();
+  console.log(muted(`  ${divider('·')}`));
+  console.log(muted('  ↑↓ navigate   Enter open   Space multi-select   P pause/resume   C cancel'));
 }
 
 function printHelp() {

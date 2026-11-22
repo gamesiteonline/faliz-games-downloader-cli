@@ -30,6 +30,8 @@
 
 ## ░▒▓ Dashboard overview
 
+The launcher opens with a dark blue-and-violet game-library dashboard inspired by modern PC game clients: a left navigation rail, catalog pulse summary, recently played and featured cards, Top-rated progress rows, and a compact keyboard control bar. The dashboard remains text-first and responsive for narrow Android Termux screens.
+
 <table>
 <tr>
 <td width="33%" valign="top">

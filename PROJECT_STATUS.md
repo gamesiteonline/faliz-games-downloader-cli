@@ -1,15 +1,17 @@
 # Faliz Games Downloader Pro — Project Status
 
 **Repository:** `gamesiteonline/faliz-games-downloader-cli`  
-**Current version:** `0.4.0`  
-**Audit stage:** Pro upgrade complete  
+**Current version:** `0.4.1`  
+**Upgrade status:** Pro foundation complete; dashboard redesign complete  
 **Last updated:** 2026-11-23
 
 ## Current baseline
 
 The project is a Node.js 18+ ESM CLI using `@inquirer/prompts`, `chalk`, `cli-progress`, `figlet`, and `ora`. The current application supports live catalog sync with local caching, Top 100 ranking, search, platform/extension filters, title/rating/size sorting, sequential multi-selection, streamed downloads, best-effort HTTP range resume, pause/resume/cancel keyboard controls, Termux-aware storage selection, developer links, and a polished README/media kit.
 
-The existing test suite has four catalog-focused tests and currently passes.
+The current test suite has seven tests covering catalog behavior, discovery helpers, downloader policy helpers, and queue concurrency; it passes.
+
+The launcher now opens with a dark blue/violet game-library dashboard inspired by modern PC game clients, including a left navigation rail, catalog pulse summary, featured rows, Top-rated progress rows, and keyboard-control hints while preserving narrow Termux usability.
 
 ## Phase 1 audit findings
 
