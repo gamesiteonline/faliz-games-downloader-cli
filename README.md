@@ -22,7 +22,7 @@ Faliz Games requires Node.js 18 or newer because it uses the modern Fetch API an
 
 ## Installation
 
-Install the published package globally with npm:
+After the package is published to the npm registry, install it globally with:
 
 ```bash
 npm install --global faliz-games-downloader-cli
@@ -41,6 +41,16 @@ npx faliz-games-downloader-cli
 ```
 
 The package exposes the `faliz-games` executable through the npm `bin` field.[^2]
+
+### Install directly from GitHub
+
+If the package has not been published to npm yet, install the repository directly over HTTPS:
+
+```bash
+npm install --global git+https://github.com/gamesiteonline/faliz-games-downloader-cli.git
+```
+
+Use the HTTPS form rather than `github:gamesiteonline/faliz-games-downloader-cli`. The `github:` shorthand can make npm invoke Git over SSH, which fails on machines that do not have a GitHub SSH key configured. If the repository is private, authenticate GitHub access first or use the npm package after publication.
 
 ## Quick start
 
