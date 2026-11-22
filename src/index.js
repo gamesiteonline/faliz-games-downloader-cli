@@ -8,7 +8,7 @@ import { filterGames, searchGames, sortGames, sortTopRated, syncCatalog, feature
 import { loadSettings, saveSettings, loadCollection, toggleCollection, addRecentlyViewed, recordDownload, upsertLibrary } from './persistence.js';
 import { DownloadQueue } from './queue.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.4.2';
 const cyan = chalk.hex('#36D1DC');
 const purple = chalk.hex('#8B5CF6');
 const green = chalk.hex('#22C55E');
