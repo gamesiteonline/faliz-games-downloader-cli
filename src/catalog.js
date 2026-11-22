@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
-export const DEFAULT_CATALOG_URL = 'https://raw.githubusercontent.com/gamesiteonline/game-database/main/Master_Game_Database.json';
+export const DEFAULT_CATALOG_URL = 'https://raw.githubusercontent.com/gamesiteonline/game-database/master/Master_Game_Database.json';
 const APP_DIR = path.join(os.homedir(), '.faliz-games');
 const CACHE_FILE = path.join(APP_DIR, 'catalog.json');
 const META_FILE = path.join(APP_DIR, 'catalog-meta.json');

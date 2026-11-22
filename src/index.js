@@ -6,7 +6,7 @@ import { confirm, input, select } from '@inquirer/prompts';
 import { downloadGame } from './downloader.js';
 import { searchGames, sortTopRated, syncCatalog } from './catalog.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 
 function printHelp() {
   console.log(`${chalk.bold('Faliz Games')} — terminal game catalog and downloader\n\nUsage:\n  faliz-games              Open the interactive catalog\n  faliz-games --help       Show this help message\n  faliz-games --version    Show the installed version\n\nEnvironment:\n  FALIZ_CATALOG_URL        Override the live catalog JSON endpoint\n`);
