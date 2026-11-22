@@ -223,7 +223,6 @@ Publishing requires an npm account with permission to publish the package name a
 
 - [Faliz Games promotional poster](./assets/marketing/faliz-games-promo-poster.png)
 - [Faliz Games motion ad](./assets/marketing/faliz-games-promo-ad.mp4)
-- [Animated README banner](./assets/marketing/faliz-games-readme-banner.gif)
 
 ## License
 
@@ -235,3 +234,11 @@ Faliz Games is released under the MIT License. See [LICENSE](./LICENSE).
 
 [^1]: [Node.js — Using the Fetch API](https://nodejs.org/en/learn/getting-started/fetch)
 [^2]: [npm Docs — Creating a package.json file](https://docs.npmjs.com/creating-a-package-json-file)
+
+## MOBILE APP FALIZ GAMES (GAMESITEONLINE.APK)
+
+<div align="center">
+  <sub>An Android application with faster and good interface for downloadin games,It works the same like faliz games cli..</sub>
+</div>
+
+- [DOWNLOAD GAMESITEONLINE APP](https://github.com/gamesiteonline/gamesiteonline/releases/tag/App)
