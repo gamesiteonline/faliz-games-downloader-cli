@@ -12,6 +12,15 @@ export function parseRating(value) {
   return match ? Number(match[0].replace(',', '.')) : 0;
 }
 
+export function parseSize(value) {
+  const match = String(value ?? '').replace(',', '.').match(/([0-9.]+)\s*(KB|MB|GB|TB|B)?/i);
+  if (!match) return 0;
+  const amount = Number(match[1]);
+  const unit = (match[2] ?? 'MB').toUpperCase();
+  const multiplier = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4 }[unit] ?? 1024 ** 2;
+  return amount * multiplier;
+}
+
 export function normalizeGame(raw, index = 0) {
   const name = raw?.FileName ?? raw?.name ?? raw?.title ?? `Untitled game ${index + 1}`;
   const downloadUrl = raw?.DownloadLink ?? raw?.download_link ?? raw?.downloadUrl ?? '';
@@ -23,6 +32,7 @@ export function normalizeGame(raw, index = 0) {
     rating: parseRating(raw?.Rating ?? raw?.rating),
     ratingLabel: String(raw?.Rating ?? raw?.rating ?? 'Not rated'),
     size: String(raw?.Size ?? raw?.size ?? 'Unknown size'),
+    sizeBytes: parseSize(raw?.Size ?? raw?.size),
     extension: String(raw?.Extension ?? raw?.extension ?? ''),
     description: String(raw?.Description ?? raw?.description ?? ''),
     compatibility: String(raw?.Compatibility ?? raw?.compatibility ?? ''),
@@ -43,6 +53,27 @@ export function normalizeCatalog(payload) {
 
 export function sortTopRated(games, limit = 100) {
   return [...games].sort((a, b) => b.rating - a.rating || a.name.localeCompare(b.name)).slice(0, limit);
+}
+
+export function sortGames(games, by = 'rating', direction = 'desc') {
+  const multiplier = direction === 'asc' ? 1 : -1;
+  return [...games].sort((a, b) => {
+    const left = by === 'title' ? a.name.toLocaleLowerCase() : by === 'size' ? a.sizeBytes : a.rating;
+    const right = by === 'title' ? b.name.toLocaleLowerCase() : by === 'size' ? b.sizeBytes : b.rating;
+    if (left < right) return -1 * multiplier;
+    if (left > right) return 1 * multiplier;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function filterGames(games, { platform = '', extension = '' } = {}) {
+  const wantedPlatform = platform.trim().toLocaleLowerCase();
+  const wantedExtension = extension.trim().toLocaleLowerCase().replace(/^\./, '');
+  return games.filter(game => {
+    const platformMatch = !wantedPlatform || game.platform.toLocaleLowerCase().includes(wantedPlatform);
+    const extensionMatch = !wantedExtension || game.extension.toLocaleLowerCase().replace(/^\./, '') === wantedExtension;
+    return platformMatch && extensionMatch;
+  });
 }
 
 export function searchGames(games, query) {

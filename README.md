@@ -13,6 +13,10 @@ Faliz Games is a polished terminal application for browsing a live game catalog,
 | Search | Searches titles, platforms, genres, and file extensions. |
 | Professional TUI | Uses a branded ASCII logo, color hierarchy, spinners, paginated selectors, details panels, and progress bars. |
 | Resumable downloads | Streams files to disk without loading the complete file into memory and attempts to continue an existing partial file when the server supports byte ranges. |
+| Multi-download queue | Select several games with the keyboard and process them sequentially with resumable progress. |
+| Adaptive terminal layout | Wraps long metadata to the current terminal width and keeps lists readable on desktop terminals and mobile terminals such as Termux. |
+| Download telemetry | Shows live bytes, transfer speed, ETA, and partial-file status while downloading. |
+| Catalog filters | Filter by platform or extension and sort by rating, title, or size. |
 | Offline cache | Keeps the last successful catalog locally and falls back to it if the network is unavailable. |
 | Configurable endpoint | Supports `FALIZ_CATALOG_URL` for private deployments, mirrors, testing, or future catalog versions. |
 
@@ -62,7 +66,15 @@ When Faliz Games opens, it synchronizes the catalog and presents five actions:
 4. **About Faliz Games** displays the installed version and usage note.
 5. **Exit** closes the application.
 
-Select a title to view its metadata. Confirming a download creates `./faliz-downloads` in the current working directory unless the process is adapted to use another directory. The transfer displays a live progress bar when the server provides a content length.
+Select one or several titles to view metadata and queue downloads. Files are saved to `~/Downloads/faliz-games` when available. On Termux, run `termux-setup-storage` once and Faliz Games uses the shared device Downloads folder at `~/storage/downloads/faliz-games`. Set `FALIZ_DOWNLOAD_DIR` to choose another location. Transfers display live bytes, speed, and ETA when the server provides a content length, with an animated byte-count spinner as a fallback.
+
+Use **Space** to select multiple entries. Faliz Games processes the queue sequentially, preserves `.part` files when interrupted with `Ctrl+C`, and resumes them on the next attempt when the server supports byte ranges.
+
+On Termux, grant shared storage access with:
+
+```bash
+termux-setup-storage
+```
 
 ## Command reference
 
@@ -140,6 +152,17 @@ Publishing requires an npm account with permission to publish the package name. 
 ## License
 
 Faliz Games is released under the MIT License. See [LICENSE](./LICENSE).
+
+## Developer
+
+Faliz Games is developed by **Fahad Mohamed** from Tanzania.
+
+- Threads: <https://www.threads.com/@ard.sing>
+- Reddit: <https://www.reddit.com/u/gamesiteonline>
+- Instagram: <https://www.instagram.com/ard.sing>
+- WhatsApp channel: <https://whatsapp.com/channel/0029VbChyDUI1rcht5jajL3q>
+- YouTube: <https://youtube.com/@gamesiteonline>
+- Google Play Games: <https://my.play/gamesiteonline>
 
 ## References
 
