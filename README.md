@@ -16,6 +16,7 @@ Faliz Games is a polished terminal application for browsing a live game catalog,
 | Multi-download queue | Select several games with the keyboard and process them sequentially with resumable progress. |
 | Adaptive terminal layout | Wraps long metadata to the current terminal width and keeps lists readable on desktop terminals and mobile terminals such as Termux. |
 | Download telemetry | Shows live bytes, transfer speed, ETA, and partial-file status while downloading. |
+| Download controls | Press `P` to pause/resume or `C` to cancel while a transfer is active; canceled transfers remain resumable. |
 | Catalog filters | Filter by platform or extension and sort by rating, title, or size. |
 | Offline cache | Keeps the last successful catalog locally and falls back to it if the network is unavailable. |
 | Configurable endpoint | Supports `FALIZ_CATALOG_URL` for private deployments, mirrors, testing, or future catalog versions. |
@@ -68,7 +69,7 @@ When Faliz Games opens, it synchronizes the catalog and presents five actions:
 
 Select one or several titles to view metadata and queue downloads. Files are saved to `~/Downloads/faliz-games` when available. On Termux, run `termux-setup-storage` once and Faliz Games uses the shared device Downloads folder at `~/storage/downloads/faliz-games`. Set `FALIZ_DOWNLOAD_DIR` to choose another location. Transfers display live bytes, speed, and ETA when the server provides a content length, with an animated byte-count spinner as a fallback.
 
-Use **Space** to select multiple entries. Faliz Games processes the queue sequentially, preserves `.part` files when interrupted with `Ctrl+C`, and resumes them on the next attempt when the server supports byte ranges.
+Use **Space** to select multiple entries. Faliz Games processes the queue sequentially, prints a clear start message, and shows live progress. During a transfer press **P** to pause/resume or **C** to cancel. Canceled and interrupted downloads preserve `.part` files and resume on the next attempt when the server supports byte ranges.
 
 On Termux, grant shared storage access with:
 
@@ -156,6 +157,8 @@ Faliz Games is released under the MIT License. See [LICENSE](./LICENSE).
 ## Developer
 
 Faliz Games is developed by **Fahad Mohamed** from Tanzania.
+
+In terminals that support OSC 8 hyperlinks, tap a social link in the **About Faliz Games & developer** screen to open it directly.
 
 - Threads: <https://www.threads.com/@ard.sing>
 - Reddit: <https://www.reddit.com/u/gamesiteonline>

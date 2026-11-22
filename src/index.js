@@ -6,7 +6,7 @@ import { checkbox, confirm, input, select } from '@inquirer/prompts';
 import { downloadGame, formatBytes, getDefaultDownloadDirectory, getDownloadStatus } from './downloader.js';
 import { filterGames, searchGames, sortGames, sortTopRated, syncCatalog } from './catalog.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const cyan = chalk.hex('#36D1DC');
 const purple = chalk.hex('#8B5CF6');
 const green = chalk.hex('#22C55E');
@@ -32,6 +32,7 @@ function wrapText(value, width = columns() - 4) {
 
 function divider(char = '─') { return muted(char.repeat(columns())); }
 function logo() { return cyan(figlet.textSync('FALIZ GAMES', { font: 'Small', horizontalLayout: 'default' })); }
+function link(label, url) { return `\u001b]8;;${url}\u0007${cyan(label)}\u001b]8;;\u0007`; }
 function rating(game) {
   const filled = Math.max(0, Math.min(5, Math.round(game.rating / 2)));
   return yellow('★'.repeat(filled) + muted('☆'.repeat(5 - filled)));
@@ -112,10 +113,13 @@ async function downloadFlow(games) {
     const accepted = await confirm({ message: `Download to ${getDefaultDownloadDirectory()}?`, default: true });
     if (!accepted) continue;
     try {
+      console.log(cyan(`\n▶ Starting download: ${game.name}`));
+      console.log(muted('   Press P to pause/resume or C to cancel. Partial data is preserved.'));
       const result = await downloadGame(game);
       console.log(green(`\n✓ Saved ${formatBytes(result.bytes)} to ${result.filePath}`));
     } catch (error) {
-      console.log(chalk.red(`\n✗ Download failed: ${error.message}`));
+      const canceled = error.message.toLowerCase().includes('canceled') || error.message.toLowerCase().includes('interrupted');
+      console.log(canceled ? yellow(`\n■ ${error.message}`) : chalk.red(`\n✗ Download failed: ${error.message}`));
     }
   }
   const next = await select({
@@ -133,12 +137,12 @@ async function showAbout() {
   console.log(`\n${logo()}\n${chalk.bold(`Version ${VERSION}`)}`);
   console.log('A terminal-first catalog browser with live synchronization and streamed downloads.');
   console.log(muted(`\nDeveloper: Fahad Mohamed — Tanzania`));
-  console.log(`${cyan('Threads')}    https://www.threads.com/@ard.sing`);
-  console.log(`${cyan('Reddit')}     https://www.reddit.com/u/gamesiteonline`);
-  console.log(`${cyan('Instagram')}  https://www.instagram.com/ard.sing`);
-  console.log(`${cyan('WhatsApp')}   https://whatsapp.com/channel/0029VbChyDUI1rcht5jajL3q`);
-  console.log(`${cyan('YouTube')}    https://youtube.com/@gamesiteonline`);
-  console.log(`${cyan('Play Games')} https://my.play/gamesiteonline`);
+  console.log(link('Threads', 'https://www.threads.com/@ard.sing'));
+  console.log(link('Reddit', 'https://www.reddit.com/u/gamesiteonline'));
+  console.log(link('Instagram', 'https://www.instagram.com/ard.sing'));
+  console.log(link('WhatsApp channel', 'https://whatsapp.com/channel/0029VbChyDUI1rcht5jajL3q'));
+  console.log(link('YouTube', 'https://youtube.com/@gamesiteonline'));
+  console.log(link('Google Play Games', 'https://my.play/gamesiteonline'));
   console.log(muted('\nOnly download and use files you are authorized to access.'));
   await input({ message: 'Press Enter to continue', default: '' });
 }

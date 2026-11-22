@@ -3,7 +3,6 @@ import fsPromises from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
-import { pipeline } from 'node:stream/promises';
 import cliProgress from 'cli-progress';
 import ora from 'ora';
 
@@ -59,13 +58,30 @@ export async function getDownloadStatus(game, directory = getDefaultDownloadDire
 
 function makeProgress(total, start, label) {
   return new cliProgress.SingleBar({
-    format: ` ${label} {bar} {percentage}% | {value}/{total} | {speed}/s | ETA {eta_formatted}`,
+    format: ` ${label} {bar} {percentage}% | {value}/{total} | {speed}/s | ETA {eta_formatted} | {status}`,
     barCompleteChar: '█',
     barIncompleteChar: '░',
     hideCursor: true,
     stopOnComplete: true,
     clearOnComplete: false,
-  }, cliProgress.Presets.shades_classic).start(total, start, { speed: '0 B' });
+  }, cliProgress.Presets.shades_classic).start(total, start, { speed: '0 B', status: 'P pause · C cancel' });
+}
+
+function enableDownloadControls(onPauseToggle, onCancel) {
+  if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== 'function') return () => {};
+  const onData = chunk => {
+    const key = chunk.toString().toLowerCase();
+    if (key === 'p' || key === ' ') onPauseToggle();
+    if (key === 'c' || key === '\u0003') onCancel();
+  };
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  process.stdin.on('data', onData);
+  return () => {
+    process.stdin.off('data', onData);
+    process.stdin.setRawMode(false);
+    process.stdin.pause();
+  };
 }
 
 export async function downloadGame(game, {
@@ -84,8 +100,9 @@ export async function downloadGame(game, {
   const partialPath = `${finalPath}.part`;
   const existingSize = await fsPromises.stat(partialPath).then(stat => stat.size).catch(() => 0);
   const controller = new AbortController();
-  const abort = () => controller.abort();
-  const onSigint = () => controller.abort();
+  let releasePause = () => {};
+  const abort = () => { releasePause(); controller.abort(); };
+  const onSigint = () => abort();
   if (externalSignal) {
     if (externalSignal.aborted) controller.abort();
     else externalSignal.addEventListener('abort', abort, { once: true });
@@ -110,23 +127,41 @@ export async function downloadGame(game, {
     const total = Number(response.headers.get('content-length') ?? 0) + startingBytes;
     const label = safeName(game.name).slice(0, 24).padEnd(24);
     const bar = total ? makeProgress(total, startingBytes, label) : null;
-    const spinner = total ? null : ora({ text: `${label.trim()}  ${formatBytes(startingBytes)} downloaded · calculating speed…`, color: 'cyan' }).start();
+    const spinner = total ? null : ora({ text: `${label.trim()}  ${formatBytes(startingBytes)} downloaded · P pause · C cancel`, color: 'cyan' }).start();
     const writer = fs.createWriteStream(partialPath, { flags: append ? 'a' : 'w' });
     let downloaded = startingBytes;
     let lastUpdate = Date.now();
     let lastBytes = downloaded;
     let speed = 0;
+    let paused = false;
+    let resolvePause;
+    const pauseMessage = () => new Promise(resolve => { resolvePause = resolve; releasePause = resolve; });
+    const togglePause = () => {
+      paused = !paused;
+      if (!paused && resolvePause) { resolvePause(); resolvePause = null; releasePause = () => {}; }
+      if (bar) bar.update(downloaded, { speed: formatBytes(speed), status: paused ? 'PAUSED · P resume · C cancel' : 'P pause · C cancel' });
+      if (spinner) spinner.text = paused ? `${label.trim()}  PAUSED · P resume · C cancel` : `${label.trim()}  ${formatBytes(downloaded)} downloaded · P pause · C cancel`;
+    };
+    const cancel = () => {
+      abort();
+    };
+    const disableControls = enableDownloadControls(togglePause, cancel);
     try {
       if (!response.body) throw new Error('The server returned an empty response body.');
       for await (const chunk of response.body) {
-        if (controller.signal.aborted) throw new Error('Download interrupted; partial data was preserved for resume.');
+        if (controller.signal.aborted) throw new Error('Download canceled; partial data was preserved for resume.');
+        while (paused && !controller.signal.aborted) {
+          resumePause = pauseMessage();
+          await resumePause;
+        }
+        if (controller.signal.aborted) throw new Error('Download canceled; partial data was preserved for resume.');
         if (!writer.write(chunk)) await once(writer, 'drain');
         downloaded += chunk.length;
         const now = Date.now();
         if (now - lastUpdate >= 100 || !total) {
           speed = (downloaded - lastBytes) / Math.max((now - lastUpdate) / 1000, 0.001);
-          if (bar) bar.update(downloaded, { speed: formatBytes(speed) });
-          if (spinner) spinner.text = `${label.trim()}  ${formatBytes(downloaded)} downloaded · ${formatBytes(speed)}/s`;
+          if (bar) bar.update(downloaded, { speed: formatBytes(speed), status: paused ? 'PAUSED · P resume · C cancel' : 'P pause · C cancel' });
+          if (spinner) spinner.text = `${label.trim()}  ${formatBytes(downloaded)} downloaded · ${formatBytes(speed)}/s · P pause · C cancel`;
           onProgress({ downloaded, total, speed });
           lastUpdate = now;
           lastBytes = downloaded;
@@ -137,6 +172,7 @@ export async function downloadGame(game, {
       writer.destroy();
       throw error;
     } finally {
+      disableControls();
       if (bar) bar.stop();
       if (spinner) spinner.stop();
     }
