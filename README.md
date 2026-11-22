@@ -1,173 +1,237 @@
-# Faliz Games Downloader CLI
+<div align="center">
+  <a href="https://github.com/gamesiteonline/faliz-games-downloader-cli">
+    <img src="./assets/marketing/faliz-games-logo.png" alt="Faliz Games logo" width="820">
+  </a>
 
-Faliz Games is a polished terminal application for browsing a live game catalog, finding titles quickly, viewing the 100 highest-rated entries, and downloading authorized files directly to a local folder. It is distributed as an npm package and is designed to feel fast, readable, and dependable in everyday terminal use.
+  <br>
+  <br>
 
-> **Important:** Faliz Games is a catalog and file-transfer tool. Download, install, and use only content that you are legally authorized to access.
+  <a href="https://github.com/gamesiteonline/faliz-games-downloader-cli">
+    <img src="https://img.shields.io/badge/FALIZ%20GAMES-terminal%20edition-36D1DC?style=for-the-badge&labelColor=080B14" alt="Faliz Games terminal edition">
+  </a>
+  <a href="https://nodejs.org/">
+    <img src="https://img.shields.io/badge/Node.js-18%2B-8B5CF6?style=for-the-badge&labelColor=080B14&logo=node.js&logoColor=white" alt="Node.js 18 or newer">
+  </a>
+  <a href="https://www.npmjs.com/">
+    <img src="https://img.shields.io/badge/npm-ready-22C55E?style=for-the-badge&labelColor=080B14&logo=npm&logoColor=white" alt="npm ready">
+  </a>
 
-## Features
+  <h1>Faliz Games Downloader CLI</h1>
+  <p><strong>Discover. Search. Download. Resume anytime.</strong></p>
+  <p>A fast, professional terminal dashboard for browsing a live game catalog and downloading authorized files.</p>
+</div>
 
-| Capability | What it does |
-|---|---|
-| Live synchronization | Retrieves the latest catalog when the application starts and supports an explicit refresh action. |
-| Top 100 view | Sorts recognized ratings and presents the 100 highest-rated games first. |
-| Search | Searches titles, platforms, genres, and file extensions. |
-| Professional TUI | Uses a branded ASCII logo, color hierarchy, spinners, paginated selectors, details panels, and progress bars. |
-| Resumable downloads | Streams files to disk without loading the complete file into memory and attempts to continue an existing partial file when the server supports byte ranges. |
-| Multi-download queue | Select several games with the keyboard and process them sequentially with resumable progress. |
-| Adaptive terminal layout | Wraps long metadata to the current terminal width and keeps lists readable on desktop terminals and mobile terminals such as Termux. |
-| Download telemetry | Shows live bytes, transfer speed, ETA, and partial-file status while downloading. |
-| Download controls | Press `P` to pause/resume or `C` to cancel while a transfer is active; canceled transfers remain resumable. |
-| Catalog filters | Filter by platform or extension and sort by rating, title, or size. |
-| Offline cache | Keeps the last successful catalog locally and falls back to it if the network is unavailable. |
-| Configurable endpoint | Supports `FALIZ_CATALOG_URL` for private deployments, mirrors, testing, or future catalog versions. |
+<div align="center">
+  <img src="./assets/marketing/faliz-games-readme-banner.gif" alt="Animated Faliz Games terminal download dashboard" width="720">
+</div>
 
-## Requirements
+> [!IMPORTANT]
+> Faliz Games is a catalog and file-transfer tool. Download, install, and use only content you are legally authorized to access.
 
-Faliz Games requires Node.js 18 or newer because it uses the modern Fetch API and Web Streams available in supported Node.js releases.[^1] An interactive terminal is recommended for the full experience.
+## ░▒▓ Dashboard overview
 
-## Installation
+<table>
+<tr>
+<td width="33%" valign="top">
 
-After the package is published to the npm registry, install it globally with:
+### ◈ Discover
+
+- Live catalog synchronization
+- Top 100 highest-rated games
+- Offline cache fallback
+- Refresh on demand
+
+</td>
+<td width="33%" valign="top">
+
+### ◈ Control
+
+- Search by title, genre, platform, or extension
+- Filter and sort results
+- Select multiple games with Space
+- Back navigation and queue actions
+
+</td>
+<td width="33%" valign="top">
+
+### ◈ Download
+
+- Visible start feedback
+- Live speed and ETA
+- `P` pause/resume
+- `C` cancel and resume later
+
+</td>
+</tr>
+</table>
+
+## ▰ Feature matrix
+
+| System | Capability | Status |
+|---|---|:---:|
+| Catalog | Live sync with ETag / Last-Modified support | `LIVE` |
+| Ranking | Top 100 rated games | `READY` |
+| Search | Title, platform, genre, extension | `READY` |
+| Filters | Platform and extension filters | `READY` |
+| Sorting | Rating, title, and size sorting | `READY` |
+| Queue | Multiple game selection and sequential downloads | `READY` |
+| Transfer | Streamed downloads without buffering entire files | `FAST` |
+| Recovery | Partial-file resume when the server supports byte ranges | `RESUMABLE` |
+| Controls | Pause, resume, cancel, and `Ctrl+C` interruption | `ACTIVE` |
+| Storage | Downloads folder support for desktop and Termux | `MOBILE READY` |
+| UI | Adaptive terminal width, colors, spinners, bars, and metadata cards | `PRO` |
+
+## ▰ Installation
+
+### npm registry
 
 ```bash
 npm install --global faliz-games-downloader-cli
-```
-
-Then launch the application:
-
-```bash
 faliz-games
 ```
 
-You can also run it without a global installation:
-
-```bash
-npx faliz-games-downloader-cli
-```
-
-The package exposes the `faliz-games` executable through the npm `bin` field.[^2]
-
-### Install directly from GitHub
-
-If the package has not been published to npm yet, install the repository directly over HTTPS:
+### Directly from GitHub
 
 ```bash
 npm install --global git+https://github.com/gamesiteonline/faliz-games-downloader-cli.git
+faliz-games
 ```
 
-Use the HTTPS form rather than `github:gamesiteonline/faliz-games-downloader-cli`. The `github:` shorthand can make npm invoke Git over SSH, which fails on machines that do not have a GitHub SSH key configured. If the repository is private, authenticate GitHub access first or use the npm package after publication.
+Use the HTTPS form rather than `github:gamesiteonline/faliz-games-downloader-cli`. The `github:` shorthand can make npm invoke Git over SSH, which fails on machines without a GitHub SSH key configured.
 
-## Quick start
+### Termux storage
 
-When Faliz Games opens, it synchronizes the catalog and presents five actions:
-
-1. **Top 100 best-rated games** opens a paginated ranked list.
-2. **Search the catalog** accepts title, platform, genre, or extension terms.
-3. **Refresh live catalog** checks the remote endpoint immediately instead of waiting for the next launch.
-4. **About Faliz Games** displays the installed version and usage note.
-5. **Exit** closes the application.
-
-Select one or several titles to view metadata and queue downloads. Files are saved to `~/Downloads/faliz-games` when available. On Termux, run `termux-setup-storage` once and Faliz Games uses the shared device Downloads folder at `~/storage/downloads/faliz-games`. Set `FALIZ_DOWNLOAD_DIR` to choose another location. Transfers display live bytes, speed, and ETA when the server provides a content length, with an animated byte-count spinner as a fallback.
-
-Use **Space** to select multiple entries. Faliz Games processes the queue sequentially, prints a clear start message, and shows live progress. During a transfer press **P** to pause/resume or **C** to cancel. Canceled and interrupted downloads preserve `.part` files and resume on the next attempt when the server supports byte ranges.
-
-On Termux, grant shared storage access with:
+Grant shared device storage once, then launch Faliz Games:
 
 ```bash
 termux-setup-storage
+npm install --global faliz-games-downloader-cli
+faliz-games
 ```
 
-## Command reference
+Files are saved to `~/storage/downloads/faliz-games` on Termux. On desktop Linux and macOS, Faliz Games uses `~/Downloads/faliz-games` when available. Override the location with:
+
+```bash
+FALIZ_DOWNLOAD_DIR="$HOME/Games/faliz" faliz-games
+```
+
+## ▰ Terminal command deck
 
 ```text
 faliz-games              Open the interactive catalog
-faliz-games --help       Show command help
+faliz-games --help       Show help and environment variables
 faliz-games --version    Show the installed version
 ```
 
-## Live updates and caching
+### In-session controls
 
-The application does not bundle the catalog into the npm package. It requests the configured JSON endpoint at startup, stores a compact local copy under `~/.faliz-games/`, and uses HTTP validators such as ETag or Last-Modified when available. This keeps startup synchronization efficient while allowing catalog changes to become available to users without reinstalling the CLI.
+```text
+↑ / ↓       Move through the catalog
+Space       Select multiple games
+Enter       Open a view or start the queue
+P           Pause or resume an active download
+C           Cancel an active download and preserve its partial file
+Ctrl+C      Interrupt safely and keep resumable data
+```
 
-If the endpoint is temporarily unreachable, Faliz Games uses the last successful local copy and labels the session as **Offline cache**. If no cache exists yet, the application reports the network error and exits instead of presenting incomplete data.
+## ▰ Quick start flow
 
-To point the CLI at another catalog endpoint:
+1. Faliz Games synchronizes the live catalog and shows the current game count.
+2. Open **Top 100**, **Search**, or **Filter and sort catalog**.
+3. Select one or more titles with **Space**.
+4. Review format, size, rating, compatibility, and local file status.
+5. Start the queue and use `P` or `C` while a download is active.
+6. Choose whether to continue browsing, return to the menu, or exit.
+
+Downloads are streamed directly to disk. A `.part` file is preserved when a transfer is canceled or interrupted, then reused for resume when the server supports range requests.
+
+## ▰ Live catalog and cache
+
+The catalog is not bundled into the npm package. Faliz Games requests the configured JSON endpoint at startup and stores a compact local copy under `~/.faliz-games/`. HTTP validators such as ETag and Last-Modified keep repeat syncs efficient.
+
+If the network is temporarily unavailable, the last successful catalog is labeled **Offline cache** and remains usable. Configure another endpoint without changing the package:
 
 ```bash
 FALIZ_CATALOG_URL="https://example.com/catalog.json" faliz-games
 ```
 
-The endpoint should return either a JSON array or an object containing a `games` array. The normalizer accepts the following common field aliases:
+The endpoint may return a JSON array or an object containing a `games` array. Common aliases are supported for IDs, names, ratings, download URLs, platforms, genres, sizes, extensions, descriptions, and compatibility notes.
 
-| Canonical field | Accepted aliases |
-|---|---|
-| `id` | `GameID`, `game_id`, `id` |
-| `name` | `FileName`, `name`, `title` |
-| `rating` | `Rating`, `rating` |
-| `downloadUrl` | `DownloadLink`, `download_link`, `downloadUrl` |
-| `platform` | `Platform`, `platform` |
-| `genre` | `Genre`, `genre` |
-| `size` | `Size`, `size` |
-| `extension` | `Extension`, `extension` |
-| `description` | `Description`, `description` |
-| `compatibility` | `Compatibility`, `compatibility` |
+## ▰ Developer dashboard
 
-## Download behavior
+<div align="center">
+  <strong>Fahad Mohamed · Tanzania</strong>
+  <br>
+  <sub>Faliz Games developer and maintainer</sub>
+</div>
 
-Downloads are streamed through Node.js to avoid buffering the complete file in memory. The program validates that the URL uses HTTP or HTTPS, creates the destination directory when necessary, sanitizes the output filename, and writes a partial file before finalizing it. If a partial file is present and the remote server returns `206 Partial Content`, the transfer resumes from the existing byte count. Server behavior varies, so resume support is best-effort rather than guaranteed.
+<br>
 
-The CLI intentionally asks for confirmation before each download. This prevents accidental large transfers and gives the user a chance to verify the title, platform, rating, size, and compatibility information first.
+<div align="center">
+  <a href="https://www.threads.com/@ard.sing"><img src="https://cdn.simpleicons.org/threads/000000" width="28" alt="Threads"></a>&nbsp;&nbsp;
+  <a href="https://www.reddit.com/u/gamesiteonline"><img src="https://cdn.simpleicons.org/reddit/FF4500" width="28" alt="Reddit"></a>&nbsp;&nbsp;
+  <a href="https://www.instagram.com/ard.sing"><img src="https://cdn.simpleicons.org/instagram/E4405F" width="28" alt="Instagram"></a>&nbsp;&nbsp;
+  <a href="https://whatsapp.com/channel/0029VbChyDUI1rcht5jajL3q"><img src="https://cdn.simpleicons.org/whatsapp/25D366" width="28" alt="WhatsApp channel"></a>&nbsp;&nbsp;
+  <a href="https://youtube.com/@gamesiteonline"><img src="https://cdn.simpleicons.org/youtube/FF0000" width="28" alt="YouTube"></a>&nbsp;&nbsp;
+  <a href="https://my.play/gamesiteonline"><img src="https://cdn.simpleicons.org/googleplay/414141" width="28" alt="Google Play Games"></a>
+</div>
 
-## Development
+<br>
 
-Clone the repository and install dependencies:
+<div align="center">
+  <a href="https://www.threads.com/@ard.sing">Threads</a> ·
+  <a href="https://www.reddit.com/u/gamesiteonline">Reddit</a> ·
+  <a href="https://www.instagram.com/ard.sing">Instagram</a> ·
+  <a href="https://whatsapp.com/channel/0029VbChyDUI1rcht5jajL3q">WhatsApp</a> ·
+  <a href="https://youtube.com/@gamesiteonline">YouTube</a> ·
+  <a href="https://my.play/gamesiteonline">Google Play</a>
+</div>
+
+> Tip: the **About Faliz Games & developer** screen uses OSC 8 terminal hyperlinks where supported. Tap a social icon or link in compatible terminals to open the profile.
+
+## ▰ Development
 
 ```bash
 git clone https://github.com/gamesiteonline/faliz-games-downloader-cli.git
 cd faliz-games-downloader-cli
 npm install
+npm test
+npm start
 ```
 
 Useful scripts:
 
 ```bash
-npm start       # Run the CLI
-npm test        # Run automated tests
-npm run dev     # Restart on source changes
-npm run pack:check  # Verify npm package contents without publishing
+npm test              # Run the automated test suite
+npm run dev           # Restart on source changes
+npm run pack:check    # Verify npm package contents without publishing
 ```
 
-For a local catalog or fixture server, set `FALIZ_CATALOG_URL` before starting the program. The automated tests use an isolated endpoint stub and do not require the live catalog.
+## ▰ Release checklist
 
-## Release checklist
-
-Before publishing a new version, update the version in `package.json`, run `npm test`, run `npm run pack:check`, inspect the generated package contents, and then publish from a clean working tree:
+Before publishing a new version:
 
 ```bash
-npm version patch
-npm publish
+npm test
+npm run pack:check
+npm publish --access public
 ```
 
-Publishing requires an npm account with permission to publish the package name. npm's package and executable conventions are documented in its official package.json reference.[^2]
+Publishing requires an npm account with permission to publish the package name and the account’s configured two-factor authentication method.
+
+## ▰ Media kit
+
+- [Faliz Games promotional poster](./assets/marketing/faliz-games-promo-poster.png)
+- [Faliz Games motion ad](./assets/marketing/faliz-games-promo-ad.mp4)
+- [Animated README banner](./assets/marketing/faliz-games-readme-banner.gif)
 
 ## License
 
 Faliz Games is released under the MIT License. See [LICENSE](./LICENSE).
 
-## Developer
-
-Faliz Games is developed by **Fahad Mohamed** from Tanzania.
-
-In terminals that support OSC 8 hyperlinks, tap a social link in the **About Faliz Games & developer** screen to open it directly.
-
-- Threads: <https://www.threads.com/@ard.sing>
-- Reddit: <https://www.reddit.com/u/gamesiteonline>
-- Instagram: <https://www.instagram.com/ard.sing>
-- WhatsApp channel: <https://whatsapp.com/channel/0029VbChyDUI1rcht5jajL3q>
-- YouTube: <https://youtube.com/@gamesiteonline>
-- Google Play Games: <https://my.play/gamesiteonline>
-
-## References
+<div align="center">
+  <sub>Built for fast terminals, focused workflows, and better game discovery.</sub>
+</div>
 
 [^1]: [Node.js — Using the Fetch API](https://nodejs.org/en/learn/getting-started/fetch)
 [^2]: [npm Docs — Creating a package.json file](https://docs.npmjs.com/creating-a-package-json-file)
