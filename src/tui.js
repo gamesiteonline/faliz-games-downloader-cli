@@ -4,8 +4,8 @@ import { featuredGames, latestGames, searchGames, sortTopRated, trendingGames } 
 import { loadCollection, loadSettings, recordDownload, toggleCollection, upsertLibrary } from './persistence.js';
 
 const ESC = '\u001b[';
-const termuxMode = Boolean(process.env.TERMUX_VERSION || process.env.PREFIX?.includes('com.termux'));
-const tint = fn => termuxMode ? value => String(value) : fn;
+const termuxMode = true;
+const tint = () => value => String(value);
 const accent = tint(chalk.cyan);
 const purple = tint(chalk.magenta);
 const green = tint(chalk.green);
@@ -72,16 +72,18 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
         `${accent('Genre:')} ${selected.genre}    ${purple('Size:')} ${selected.size}`,
         `${accent('Compatibility:')} ${selected.compatibility || 'Not specified'}`,
         `${accent('Checksum:')} ${selected.checksum ? green('available ✓') : yellow('not provided')}`,
+        `${accent('Destination:')} ${settings.downloadDirectory || getDefaultDownloadDirectory()}`,
         '',
         clean(selected.description) || muted('No description available.'),
         '',
+        state.message ? `${accent('Status:')} ${state.message}` : '',
         `${accent('D')} download    ${accent('F')} favorite    ${accent('W')} wishlist    ${accent('Esc')} back`,
       ];
       const detailOutput = [`${accent('FALIZ GAMES')}  ${muted('/// GAME CARD')}`, '', ...box('GAME DETAILS', detailLines), '', muted('↑↓ change game  D download  F favorite  W wishlist  Esc back  Q quit')];
       process.stdout.write(`${ESC}2J${ESC}H${detailOutput.slice(0, height() - 1).join('\n')}`);
       return;
     }
-    const header = [`${accent('FALIZ GAMES')}  ${muted('/// GAME LIBRARY')}`, '', ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'].map((name, i) => state.tab === i ? (termuxMode ? ` [${i + 1} ${name}] ` : chalk.bgMagenta.white(` ${i + 1} ${name} `)) : muted(` ${i + 1} ${name} `)).join(''), '', `${offline ? yellow('● offline cache') : green('● live catalog')}  ${muted(`${games.length.toLocaleString()} games`)}  ${muted(`v${settings.version || ''}`)}`];
+    const header = [`${accent('FALIZ GAMES')}  ${muted('/// GAME LIBRARY')}`, '', ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'].map((name, i) => state.tab === i ? ` [${i + 1} ${name}] ` : muted(` ${i + 1} ${name} `)).join(''), '', `${offline ? yellow('● offline cache') : green('● live catalog')}  ${muted(`${games.length.toLocaleString()} games`)}  ${muted(`v${settings.version || ''}`)}`];
     const lines = [...header];
     if (state.tab === 0) {
       const featured = featuredGames(games, 5);
