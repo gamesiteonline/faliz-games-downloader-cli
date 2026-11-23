@@ -4,12 +4,11 @@ import { featuredGames, latestGames, searchGames, sortTopRated, trendingGames } 
 import { loadCollection, loadSettings, recordDownload, toggleCollection, upsertLibrary } from './persistence.js';
 
 const ESC = '\u001b[';
-const colors = { cyan: '#36D1DC', purple: '#8B5CF6', green: '#22C55E', yellow: '#FACC15', navy: '#0B1226', muted: '#7182AA' };
-const accent = chalk.hex(colors.cyan);
-const purple = chalk.hex(colors.purple);
-const green = chalk.hex(colors.green);
-const yellow = chalk.hex(colors.yellow);
-const muted = chalk.hex(colors.muted);
+const accent = chalk.cyan;
+const purple = chalk.magenta;
+const green = chalk.green;
+const yellow = chalk.yellow;
+const muted = chalk.gray;
 
 function width() { return Math.max(50, Number(process.stdout.columns) || 80); }
 function height() { return Math.max(16, Number(process.stdout.rows) || 24); }
@@ -62,7 +61,7 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
     const list = visibleGames();
     state.cursor = Math.max(0, Math.min(state.cursor, Math.max(0, list.length - 1)));
     const selected = list[state.cursor];
-    const header = [`${accent('FALIZ GAMES')}  ${muted('/// GAME LIBRARY')}`, '', ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'].map((name, i) => state.tab === i ? chalk.bgHex(colors.purple).white(` ${i + 1} ${name} `) : muted(` ${i + 1} ${name} `)).join(''), '', `${offline ? yellow('● offline cache') : green('● live catalog')}  ${muted(`${games.length.toLocaleString()} games`)}  ${muted(`v${settings.version || ''}`)}`];
+    const header = [`${accent('FALIZ GAMES')}  ${muted('/// GAME LIBRARY')}`, '', ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'].map((name, i) => state.tab === i ? chalk.bgMagenta.white(` ${i + 1} ${name} `) : muted(` ${i + 1} ${name} `)).join(''), '', `${offline ? yellow('● offline cache') : green('● live catalog')}  ${muted(`${games.length.toLocaleString()} games`)}  ${muted(`v${settings.version || ''}`)}`];
     const lines = [...header];
     if (state.tab === 0) {
       const featured = featuredGames(games, 5);
