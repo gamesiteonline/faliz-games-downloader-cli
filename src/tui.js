@@ -21,10 +21,11 @@ function stars(value) { const count = Math.max(0, Math.min(5, Math.round(Number(
 function tabName(tab) { return ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'][tab]; }
 function formatLabel(game) { return String(game.extension || 'unknown').replace(/^\./, '').toUpperCase(); }
 function gameRow(game, index, selected, rank = '') { const marker = selected ? '▶' : ' '; const number = rank || String(index + 1).padStart(2, '0'); if (width() < 78) return `${marker} ${number} ${fit(game.name, Math.max(14, width() - 12))}\n    ${fit(game.platform, 16)} · ${formatLabel(game)} · ${stars(game.rating)} ${game.rating.toFixed(1)}`; return `${selected ? '▶ SELECTED' : '          '} ${number} ${fit(game.name, 28)} ${fit(game.platform, 16)} ${purple(fit(formatLabel(game), 8))} ${stars(game.rating)} ${yellow(game.rating.toFixed(1))}`; }
+function progressLine(progress) { if (!progress) return ''; const total = Number(progress.total || 0); const current = Number(progress.downloaded || 0); const ratio = total > 0 ? Math.max(0, Math.min(1, current / total)) : 0; const cells = 18; const filled = Math.round(ratio * cells); const bar = `${'█'.repeat(filled)}${'░'.repeat(cells - filled)}`; const percent = total > 0 ? `${Math.round(ratio * 100)}%` : formatBytes(current); return `Progress: [${bar}] ${percent}  ${formatBytes(current)}${total ? ` / ${formatBytes(total)}` : ''}`; }
 
 export async function runTui({ games, offline = false }, initialSettings = {}) {
   const settings = { ...(await loadSettings()), ...initialSettings };
-  const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', busy: false, selected: null, detail: false };
+  const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', filePath: '', progress: null, busy: false, selected: null, detail: false };
   let alive = true;
   let cleanup = () => {};
 
@@ -49,12 +50,13 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   async function downloadSelected() {
     const game = visibleGames()[state.cursor];
     if (!game || state.busy) return;
-    state.busy = true; state.message = `Starting ${game.name}…`; render();
+    state.busy = true; state.filePath = ''; state.progress = { downloaded: 0, total: game.sizeBytes || 0, speed: 0 }; state.message = `Starting ${game.name}…`; render();
+    let lastRender = 0;
     try {
-      const result = await downloadGame(game, { directory: settings.downloadDirectory || getDefaultDownloadDirectory(), retryCount: settings.retryCount, requestTimeoutMs: settings.requestTimeoutMs, onWarning: warning => { state.message = `Warning: ${warning}`; render(); } });
+      const result = await downloadGame(game, { directory: settings.downloadDirectory || getDefaultDownloadDirectory(), retryCount: settings.retryCount, requestTimeoutMs: settings.requestTimeoutMs, showProgress: false, onProgress: progress => { state.progress = progress; const now = Date.now(); if (now - lastRender > 100) { lastRender = now; render(); } }, onWarning: warning => { state.message = `Warning: ${warning}`; render(); } });
       await recordDownload({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, state: 'completed' });
       await upsertLibrary({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, platform: game.platform });
-      state.message = `Saved ${game.name} · ${formatBytes(result.bytes)}`;
+      state.progress = { downloaded: result.bytes, total: game.sizeBytes || result.bytes, speed: 0 }; state.filePath = result.filePath; state.message = `Saved ${game.name} · ${formatBytes(result.bytes)}`;
     } catch (error) { state.message = error.message; }
     state.busy = false; render();
   }
@@ -73,6 +75,8 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
         `${accent('Compatibility:')} ${selected.compatibility || 'Not specified'}`,
         `${accent('Checksum:')} ${selected.checksum ? green('available ✓') : yellow('not provided')}`,
         `${accent('Destination:')} ${settings.downloadDirectory || getDefaultDownloadDirectory()}`,
+        progressLine(state.progress),
+        state.filePath ? `${accent('Saved file:')} ${state.filePath}` : '',
         '',
         clean(selected.description) || muted('No description available.'),
         '',

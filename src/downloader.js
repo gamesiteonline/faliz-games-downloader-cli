@@ -128,7 +128,7 @@ async function verifyPartial(file, checksum) {
   return true;
 }
 
-export async function downloadGame(game, { directory = getDefaultDownloadDirectory(), fetchImpl = fetch, onProgress = () => {}, signal: externalSignal, retryCount = 2, requestTimeoutMs = 30000, stallTimeoutMs = Math.max(10000, requestTimeoutMs), onWarning = () => {} } = {}) {
+export async function downloadGame(game, { directory = getDefaultDownloadDirectory(), fetchImpl = fetch, onProgress = () => {}, signal: externalSignal, retryCount = 2, requestTimeoutMs = 30000, stallTimeoutMs = Math.max(10000, requestTimeoutMs), onWarning = () => {}, showProgress = true } = {}) {
   if (!game.downloadUrl) throw new Error('This catalog item does not have a download URL.');
   const url = new URL(game.downloadUrl);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Only HTTP(S) download URLs are supported.');
@@ -153,7 +153,7 @@ export async function downloadGame(game, { directory = getDefaultDownloadDirecto
     const append = existing > 0 && response.status === 206; const start = append ? existing : 0;
     const total = Number(response.headers.get('content-length') || 0) + start;
     await diskPreflight(directory, Math.max(0, (total || game.sizeBytes || 0) - existing));
-    const label = safeName(game.name).slice(0, 24).padEnd(24); const bar = total ? makeProgress(total, start, label) : null; const spinner = total ? null : ora({ text: `${label.trim()} downloading · P pause · C cancel`, color: 'cyan' }).start();
+    const label = safeName(game.name).slice(0, 24).padEnd(24); const bar = showProgress && total ? makeProgress(total, start, label) : null; const spinner = showProgress && !total ? ora({ text: `${label.trim()} downloading · P pause · C cancel`, color: 'cyan' }).start() : null;
     const writer = fs.createWriteStream(partialPath, { flags: append ? 'a' : 'w' });
     let downloaded = start; let last = Date.now(); let lastBytes = start; let paused = false; let waiter = null;
     const wake = () => { if (waiter) { const resolve = waiter; waiter = null; resolve(); } };
