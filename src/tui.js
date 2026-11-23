@@ -7,7 +7,7 @@ const ESC = '\u001b[';
 const accent = chalk.cyan;
 const purple = chalk.magenta;
 const green = chalk.green;
-const yellow = chalk.yellow;
+const yellow = chalk.yellowBright;
 const muted = chalk.gray;
 
 function width() { return Math.max(50, Number(process.stdout.columns) || 80); }
@@ -15,12 +15,14 @@ function height() { return Math.max(16, Number(process.stdout.rows) || 24); }
 function clean(value) { return String(value ?? '').replace(/[\u0000-\u001f\u007f\u001b]/g, '').trim(); }
 function fit(value, size) { const text = clean(value); return text.length > size ? `${text.slice(0, Math.max(0, size - 1))}…` : text.padEnd(size); }
 function box(title, lines, size = width() - 4) { const inner = Math.max(12, size - 4); const top = `╭─ ${title} ${'─'.repeat(Math.max(0, inner - title.length - 3))}╮`; const body = lines.slice(0, height() - 8).map(line => `│ ${fit(line, inner)} │`); return [top, ...body, `╰${'─'.repeat(inner + 2)}╯`]; }
-function stars(value) { const count = Math.max(0, Math.min(5, Math.round(Number(value || 0) / 2))); return yellow('★'.repeat(count) + muted('☆'.repeat(5 - count))); }
+function stars(value) { const count = Math.max(0, Math.min(5, Math.round(Number(value || 0) / 2))); return yellow('★'.repeat(count)) + muted('☆'.repeat(5 - count)); }
 function tabName(tab) { return ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'][tab]; }
+function formatLabel(game) { return String(game.extension || 'unknown').replace(/^\./, '').toUpperCase(); }
+function gameRow(game, index, selected, rank = '') { return `${selected ? chalk.bgCyan.black(' ▶ SELECTED ') : '           '} ${rank || String(index + 1).padStart(2, '0')} ${fit(game.name, 28)} ${chalk.cyan(fit(game.platform, 16))} ${purple(fit(formatLabel(game), 8))} ${stars(game.rating)} ${yellow(game.rating.toFixed(1))}`; }
 
 export async function runTui({ games, offline = false }, initialSettings = {}) {
   const settings = { ...(await loadSettings()), ...initialSettings };
-  const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', busy: false, selected: null };
+  const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', busy: false, selected: null, detail: false };
   let alive = true;
   let cleanup = () => {};
 
@@ -61,27 +63,43 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
     const list = visibleGames();
     state.cursor = Math.max(0, Math.min(state.cursor, Math.max(0, list.length - 1)));
     const selected = list[state.cursor];
+    if (state.detail && selected) {
+      const detailLines = [
+        `${accent('◈')} ${selected.name}`,
+        `${chalk.cyan('Platform:')} ${selected.platform}    ${purple('Format:')} ${formatLabel(selected)}    ${yellow('Rating:')} ${stars(selected.rating)} ${selected.ratingLabel}`,
+        `${chalk.cyan('Genre:')} ${selected.genre}    ${purple('Size:')} ${selected.size}`,
+        `${chalk.cyan('Compatibility:')} ${selected.compatibility || 'Not specified'}`,
+        `${chalk.cyan('Checksum:')} ${selected.checksum ? green('available ✓') : yellow('not provided')}`,
+        '',
+        clean(selected.description) || muted('No description available.'),
+        '',
+        `${accent('D')} download    ${accent('F')} favorite    ${accent('W')} wishlist    ${accent('Esc')} back`,
+      ];
+      const detailOutput = [`${accent('FALIZ GAMES')}  ${muted('/// GAME CARD')}`, '', ...box('GAME DETAILS', detailLines), '', muted('↑↓ change game  D download  F favorite  W wishlist  Esc back  Q quit')];
+      process.stdout.write(`${ESC}2J${ESC}H${detailOutput.slice(0, height() - 1).join('\n')}`);
+      return;
+    }
     const header = [`${accent('FALIZ GAMES')}  ${muted('/// GAME LIBRARY')}`, '', ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'].map((name, i) => state.tab === i ? chalk.bgMagenta.white(` ${i + 1} ${name} `) : muted(` ${i + 1} ${name} `)).join(''), '', `${offline ? yellow('● offline cache') : green('● live catalog')}  ${muted(`${games.length.toLocaleString()} games`)}  ${muted(`v${settings.version || ''}`)}`];
     const lines = [...header];
     if (state.tab === 0) {
       const featured = featuredGames(games, 5);
-      lines.push(...box('HOME · FEATURED', featured.map((game, i) => `${i === state.cursor ? accent('▸') : ' '} ${fit(game.name, Math.max(18, w - 34))} ${stars(game.rating)} ${yellow(game.rating.toFixed(1))}  ${muted(game.platform)}`)));
+      lines.push(...box('HOME · FEATURED', featured.map((game, i) => gameRow(game, i, i === state.cursor))));
       lines.push('', ...box('DISCOVER', [`Trending: ${trendingGames(games, 3).map(g => g.name).join(' · ')}`, `Latest: ${latestGames(games, 3).map(g => g.name).join(' · ')}`, 'Enter details · D download · F favorite · W wishlist']));
     } else if (state.tab === 2) {
       lines.push(`${accent('Search:')} ${state.query || muted('type to search')}  ${muted(`${list.length} results`)}`);
-      lines.push(...box('SEARCH RESULTS', list.map((game, i) => `${i === state.cursor ? accent('▸') : ' '} ${fit(game.name, Math.max(18, w - 38))} ${stars(game.rating)} ${muted(game.platform)} ${muted(game.size)}`)));
+      lines.push(...box('SEARCH RESULTS', list.map((game, i) => gameRow(game, i, i === state.cursor))));
     } else if (state.tab === 3) {
       const names = ['Downloaded', 'Favorites', 'Wishlist', 'Recent'];
       lines.push(`${names.map((name, i) => i === state.libraryTab ? accent(`[${name}]`) : muted(name)).join('  ')}`);
-      lines.push(...box('LIBRARY', list.map((game, i) => `${i === state.cursor ? accent('▸') : ' '} ${fit(game.name, Math.max(18, w - 38))} ${stars(game.rating)} ${muted(game.platform)}`)));
+      lines.push(...box('LIBRARY', list.map((game, i) => gameRow(game, i, i === state.cursor))));
     } else if (state.tab === 4) {
       lines.push(...box('DOWNLOADS', ['Download manager is ready.', 'Select a title from Home, Browse, or Search and press D.', `Destination: ${settings.downloadDirectory || getDefaultDownloadDirectory()}`, 'P pause/resume · C cancel while downloading']));
     } else if (state.tab === 5) {
       lines.push(...box('SETTINGS', [`Download directory: ${settings.downloadDirectory || getDefaultDownloadDirectory()}`, `Concurrency: ${settings.maxConcurrentDownloads}`, `Retries: ${settings.retryCount}`, `Timeout: ${settings.requestTimeoutMs} ms`, 'Use the existing Settings menu to edit values.']));
     } else {
-      lines.push(...box('BROWSE · TOP RATED', list.map((game, i) => `${i === state.cursor ? accent('▸') : ' '} ${String(i + 1).padStart(3, ' ')} ${fit(game.name, Math.max(18, w - 54))} ${muted(game.platform)} ${stars(game.rating)} ${yellow(game.rating.toFixed(1))} ${muted(game.size)}`)));
+      lines.push(...box('BROWSE · TOP RATED', list.map((game, i) => gameRow(game, i, i === state.cursor, String(i + 1).padStart(3, ' ')))));
     }
-    if (selected) lines.push('', ...box('SELECTED', [`${selected.name} · ${selected.genre} · ${selected.platform}`, `${stars(selected.rating)} ${selected.ratingLabel} · ${selected.size}`, clean(selected.description).slice(0, Math.max(20, w - 8)), 'Enter details · D download · F favorite · W wishlist']));
+    if (selected) lines.push('', ...box('SELECTED GAME · PRESS ENTER FOR CARD', [`${accent(selected.name)}`, `${chalk.cyan(selected.platform)} · ${purple(formatLabel(selected))} · ${stars(selected.rating)} ${yellow(selected.rating.toFixed(1))} · ${selected.size}`, 'Enter details · D download · F favorite · W wishlist']));
     lines.push('', muted(state.message || '↑↓ move  ←→ tabs  1–6 jump  / search  D download  F favorite  W wishlist  Q quit'), muted('Only download files you are authorized to access.'));
     process.stdout.write(`${ESC}2J${ESC}H${lines.slice(0, height() - 1).join('\n')}`);
   }
@@ -99,7 +117,8 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
     if (key === 'd' || key === 'D') { await downloadSelected(); return; }
     if (key === 'f' || key === 'F') { await toggle('favorites'); return; }
     if (key === 'w' || key === 'W') { await toggle('wishlist'); return; }
-    if (key === '\r') { const game = visibleGames()[state.cursor]; if (game) { state.message = `${game.name} · ${game.description || 'No description available.'}`; render(); } return; }
+    if (key === '\u001b') { state.detail = false; render(); return; }
+    if (key === '\r') { const game = visibleGames()[state.cursor]; if (game) { state.detail = true; render(); } return; }
   }
   await new Promise(resolve => {
     const quit = () => { alive = false; cleanup(); resolve(); };
