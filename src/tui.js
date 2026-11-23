@@ -4,21 +4,23 @@ import { featuredGames, latestGames, searchGames, sortTopRated, trendingGames } 
 import { loadCollection, loadSettings, recordDownload, toggleCollection, upsertLibrary } from './persistence.js';
 
 const ESC = '\u001b[';
-const accent = chalk.cyan;
-const purple = chalk.magenta;
-const green = chalk.green;
-const yellow = chalk.yellowBright;
-const muted = chalk.gray;
+const termuxMode = Boolean(process.env.TERMUX_VERSION || process.env.PREFIX?.includes('com.termux'));
+const tint = fn => termuxMode ? value => String(value) : fn;
+const accent = tint(chalk.cyan);
+const purple = tint(chalk.magenta);
+const green = tint(chalk.green);
+const yellow = tint(chalk.yellowBright);
+const muted = tint(chalk.gray);
 
 function width() { return Math.max(50, Number(process.stdout.columns) || 80); }
 function height() { return Math.max(16, Number(process.stdout.rows) || 24); }
 function clean(value) { return String(value ?? '').replace(/[\u0000-\u001f\u007f\u001b]/g, '').trim(); }
 function fit(value, size) { const text = clean(value); return text.length > size ? `${text.slice(0, Math.max(0, size - 1))}…` : text.padEnd(size); }
-function box(title, lines, size = width() - 4) { const inner = Math.max(12, size - 4); const top = `╭─ ${title} ${'─'.repeat(Math.max(0, inner - title.length - 3))}╮`; const body = lines.slice(0, height() - 8).map(line => `│ ${fit(line, inner)} │`); return [top, ...body, `╰${'─'.repeat(inner + 2)}╯`]; }
-function stars(value) { const count = Math.max(0, Math.min(5, Math.round(Number(value || 0) / 2))); return yellow('★'.repeat(count)) + muted('☆'.repeat(5 - count)); }
+function box(title, lines, size = width() - 4) { const inner = Math.max(12, size - 4); const expanded = lines.flatMap(line => String(line).split('\n')); const top = `╭─ ${title} ${'─'.repeat(Math.max(0, inner - title.length - 3))}╮`; const body = expanded.slice(0, height() - 8).map(line => `│ ${fit(line, inner)} │`); return [top, ...body, `╰${'─'.repeat(inner + 2)}╯`]; }
+function stars(value) { const count = Math.max(0, Math.min(5, Math.round(Number(value || 0) / 2))); if (termuxMode) return '⭐'.repeat(count) + '☆'.repeat(5 - count); return yellow('★'.repeat(count)) + muted('☆'.repeat(5 - count)); }
 function tabName(tab) { return ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'][tab]; }
 function formatLabel(game) { return String(game.extension || 'unknown').replace(/^\./, '').toUpperCase(); }
-function gameRow(game, index, selected, rank = '') { return `${selected ? chalk.bgCyan.black(' ▶ SELECTED ') : '           '} ${rank || String(index + 1).padStart(2, '0')} ${fit(game.name, 28)} ${chalk.cyan(fit(game.platform, 16))} ${purple(fit(formatLabel(game), 8))} ${stars(game.rating)} ${yellow(game.rating.toFixed(1))}`; }
+function gameRow(game, index, selected, rank = '') { const marker = selected ? '▶' : ' '; const number = rank || String(index + 1).padStart(2, '0'); if (width() < 78) return `${marker} ${number} ${fit(game.name, Math.max(14, width() - 12))}\n    ${fit(game.platform, 16)} · ${formatLabel(game)} · ${stars(game.rating)} ${game.rating.toFixed(1)}`; return `${selected ? '▶ SELECTED' : '          '} ${number} ${fit(game.name, 28)} ${fit(game.platform, 16)} ${purple(fit(formatLabel(game), 8))} ${stars(game.rating)} ${yellow(game.rating.toFixed(1))}`; }
 
 export async function runTui({ games, offline = false }, initialSettings = {}) {
   const settings = { ...(await loadSettings()), ...initialSettings };
@@ -66,10 +68,10 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
     if (state.detail && selected) {
       const detailLines = [
         `${accent('◈')} ${selected.name}`,
-        `${chalk.cyan('Platform:')} ${selected.platform}    ${purple('Format:')} ${formatLabel(selected)}    ${yellow('Rating:')} ${stars(selected.rating)} ${selected.ratingLabel}`,
-        `${chalk.cyan('Genre:')} ${selected.genre}    ${purple('Size:')} ${selected.size}`,
-        `${chalk.cyan('Compatibility:')} ${selected.compatibility || 'Not specified'}`,
-        `${chalk.cyan('Checksum:')} ${selected.checksum ? green('available ✓') : yellow('not provided')}`,
+        `${accent('Platform:')} ${selected.platform}    ${purple('Format:')} ${formatLabel(selected)}    ${yellow('Rating:')} ${stars(selected.rating)} ${selected.ratingLabel}`,
+        `${accent('Genre:')} ${selected.genre}    ${purple('Size:')} ${selected.size}`,
+        `${accent('Compatibility:')} ${selected.compatibility || 'Not specified'}`,
+        `${accent('Checksum:')} ${selected.checksum ? green('available ✓') : yellow('not provided')}`,
         '',
         clean(selected.description) || muted('No description available.'),
         '',
@@ -79,7 +81,7 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
       process.stdout.write(`${ESC}2J${ESC}H${detailOutput.slice(0, height() - 1).join('\n')}`);
       return;
     }
-    const header = [`${accent('FALIZ GAMES')}  ${muted('/// GAME LIBRARY')}`, '', ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'].map((name, i) => state.tab === i ? chalk.bgMagenta.white(` ${i + 1} ${name} `) : muted(` ${i + 1} ${name} `)).join(''), '', `${offline ? yellow('● offline cache') : green('● live catalog')}  ${muted(`${games.length.toLocaleString()} games`)}  ${muted(`v${settings.version || ''}`)}`];
+    const header = [`${accent('FALIZ GAMES')}  ${muted('/// GAME LIBRARY')}`, '', ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'].map((name, i) => state.tab === i ? (termuxMode ? ` [${i + 1} ${name}] ` : chalk.bgMagenta.white(` ${i + 1} ${name} `)) : muted(` ${i + 1} ${name} `)).join(''), '', `${offline ? yellow('● offline cache') : green('● live catalog')}  ${muted(`${games.length.toLocaleString()} games`)}  ${muted(`v${settings.version || ''}`)}`];
     const lines = [...header];
     if (state.tab === 0) {
       const featured = featuredGames(games, 5);
@@ -99,7 +101,7 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
     } else {
       lines.push(...box('BROWSE · TOP RATED', list.map((game, i) => gameRow(game, i, i === state.cursor, String(i + 1).padStart(3, ' ')))));
     }
-    if (selected) lines.push('', ...box('SELECTED GAME · PRESS ENTER FOR CARD', [`${accent(selected.name)}`, `${chalk.cyan(selected.platform)} · ${purple(formatLabel(selected))} · ${stars(selected.rating)} ${yellow(selected.rating.toFixed(1))} · ${selected.size}`, 'Enter details · D download · F favorite · W wishlist']));
+    if (selected) lines.push('', ...box('SELECTED GAME · PRESS ENTER FOR CARD', [`${accent(selected.name)}`, `${accent(selected.platform)} · ${purple(formatLabel(selected))} · ${stars(selected.rating)} ${yellow(selected.rating.toFixed(1))} · ${selected.size}`, 'Enter details · D download · F favorite · W wishlist']));
     lines.push('', muted(state.message || '↑↓ move  ←→ tabs  1–6 jump  / search  D download  F favorite  W wishlist  Q quit'), muted('Only download files you are authorized to access.'));
     process.stdout.write(`${ESC}2J${ESC}H${lines.slice(0, height() - 1).join('\n')}`);
   }
