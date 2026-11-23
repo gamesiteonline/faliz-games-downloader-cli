@@ -27,7 +27,7 @@ function progressLine(progress) { if (!progress) return ''; const total = Number
 
 export async function runTui({ games, offline = false }, initialSettings = {}) {
   const settings = { ...(await loadSettings()), ...initialSettings };
-  const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', filePath: '', progress: null, busy: false, selected: null, detail: false };
+  const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', filePath: '', progress: null, downloads: [], busy: false, selected: null, detail: false };
   let alive = true;
   let cleanup = () => {};
 
@@ -52,15 +52,22 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   async function downloadSelected() {
     const game = visibleGames()[state.cursor];
     if (!game || state.busy) return;
-    state.busy = true; state.filePath = ''; state.progress = { downloaded: 0, total: game.sizeBytes || 0, speed: 0 }; state.message = `Starting ${game.name}…`; render();
+    state.busy = true; state.filePath = ''; state.progress = { downloaded: 0, total: game.sizeBytes || 0, speed: 0 }; state.message = `Starting ${game.name}…`;
+    const item = state.downloads.find(entry => entry.id === game.id) || { id: game.id, name: game.name };
+    Object.assign(item, { state: 'downloading', progress: state.progress, message: 'Starting…', filePath: '' });
+    if (!state.downloads.includes(item)) state.downloads.unshift(item);
+    render();
     let lastRender = 0;
     try {
-      const result = await downloadGame(game, { directory: settings.downloadDirectory || getDefaultDownloadDirectory(), retryCount: settings.retryCount, requestTimeoutMs: settings.requestTimeoutMs, showProgress: false, onProgress: progress => { state.progress = progress; const now = Date.now(); if (now - lastRender > 100) { lastRender = now; render(); } }, onWarning: warning => { state.message = `Warning: ${warning}`; render(); } });
+      const result = await downloadGame(game, { directory: settings.downloadDirectory || getDefaultDownloadDirectory(), retryCount: settings.retryCount, requestTimeoutMs: settings.requestTimeoutMs, showProgress: false, onProgress: progress => { state.progress = progress; item.progress = progress; item.message = 'Downloading…'; const now = Date.now(); if (now - lastRender > 100) { lastRender = now; render(); } }, onWarning: warning => { state.message = `Warning: ${warning}`; item.message = state.message; render(); } });
       await recordDownload({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, state: 'completed' });
       await upsertLibrary({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, platform: game.platform });
-      state.progress = { downloaded: result.bytes, total: game.sizeBytes || result.bytes, speed: 0 }; state.filePath = result.filePath; state.message = `Saved ${game.name} · ${formatBytes(result.bytes)}`;
-    } catch (error) { state.message = error.message; }
-    state.busy = false; render();
+      state.progress = { downloaded: result.bytes, total: game.sizeBytes || result.bytes, speed: 0 }; state.filePath = result.filePath; state.message = `Saved ${game.name} · ${formatBytes(result.bytes)}`; Object.assign(item, { state: 'done', progress: state.progress, message: state.message, filePath: result.filePath });
+    } catch (error) { state.message = error.message; Object.assign(item, { state: 'failed', message: error.message }); }
+    state.busy = false;
+    if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') process.stdin.setRawMode(true);
+    process.stdin.resume();
+    render();
   }
   async function toggle(key) { const game = visibleGames()[state.cursor]; if (!game) return; await toggleCollection(key, game.id); state.message = `${key === 'favorites' ? 'Favorite' : 'Wishlist'} updated for ${game.name}`; if (state.tab === 3) await refreshLibrary(); render(); }
   function render() {
@@ -103,7 +110,8 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
       lines.push(`${names.map((name, i) => i === state.libraryTab ? accent(`[${name}]`) : muted(name)).join('  ')}`);
       lines.push(...box('LIBRARY', list.map((game, i) => gameRow(game, i, i === state.cursor))));
     } else if (state.tab === 4) {
-      lines.push(...box('DOWNLOADS', ['Download manager is ready.', 'Select a title from Home, Browse, or Search and press D.', `Destination: ${settings.downloadDirectory || getDefaultDownloadDirectory()}`, 'P pause/resume · C cancel while downloading']));
+      const downloadRows = state.downloads.length ? state.downloads.map(item => `${item.state === 'done' ? '✓' : item.state === 'failed' ? '✗' : '↓'} ${fit(item.name, Math.max(16, w - 30))} ${item.state.toUpperCase()} ${progressLine(item.progress)}`) : ['No downloads in this session yet.', 'Select a title and press D to start.'];
+      lines.push(...box('DOWNLOADS · SESSION MANAGER', [...downloadRows, `Destination: ${settings.downloadDirectory || getDefaultDownloadDirectory()}`, 'P pause/resume · C cancel while downloading']));
     } else if (state.tab === 5) {
       lines.push(...box('SETTINGS', [`Download directory: ${settings.downloadDirectory || getDefaultDownloadDirectory()}`, `Concurrency: ${settings.maxConcurrentDownloads}`, `Retries: ${settings.retryCount}`, `Timeout: ${settings.requestTimeoutMs} ms`, 'Use the existing Settings menu to edit values.']));
     } else {
