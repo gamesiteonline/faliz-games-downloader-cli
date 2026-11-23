@@ -4,6 +4,8 @@ import { featuredGames, latestGames, searchGames, sortTopRated, trendingGames } 
 import { loadCollection, loadSettings, recordDownload, toggleCollection, upsertLibrary } from './persistence.js';
 
 const ESC = '\u001b[';
+const PINK_BACKGROUND = '\u001b]11;#2b1026\u0007';
+const RESTORE_BACKGROUND = '\u001b]11;default\u0007';
 const termuxMode = true;
 const tint = () => value => String(value);
 const accent = tint(chalk.cyan);
@@ -113,11 +115,14 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   }
   async function onKey(buffer) {
     const key = buffer.toString();
+    if (key.includes('\u001b[A')) { state.cursor -= 1; render(); return; }
+    if (key.includes('\u001b[B')) { state.cursor += 1; render(); return; }
+    if (key.includes('\u001b[C')) { state.tab = (state.tab + 1) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
+    if (key.includes('\u001b[D')) { state.tab = (state.tab + 5) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
+    if (key.length > 1 && !key.includes('\u001b')) { for (const character of key) await onKey(character); return; }
+    if (key === '\n') { state.detail = true; render(); return; }
     if (key === '\u0003' || key.toLowerCase() === 'q') { alive = false; cleanup(); return; }
-    if (key === '\u001b[A') { state.cursor -= 1; render(); return; }
-    if (key === '\u001b[B') { state.cursor += 1; render(); return; }
-    if (key === '\u001b[C' || key === '\u0009') { state.tab = (state.tab + 1) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
-    if (key === '\u001b[D') { state.tab = (state.tab + 5) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
+    if (key === '\u0009') { state.tab = (state.tab + 1) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
     if (/^[1-6]$/.test(key)) { state.tab = Number(key) - 1; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
     if (key === '/' || (state.tab === 2 && key.length === 1 && key >= ' ' && key <= '~')) { state.tab = 2; if (key !== '/') state.query += key; state.cursor = 0; render(); return; }
     if (state.tab === 2 && (key === '\u007f' || key === '\b')) { state.query = state.query.slice(0, -1); state.cursor = 0; render(); return; }
@@ -130,8 +135,8 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   }
   await new Promise(resolve => {
     const quit = () => { alive = false; cleanup(); resolve(); };
-    cleanup = () => { process.stdin.off('data', onKey); if (process.stdin.isTTY && process.stdin.setRawMode) process.stdin.setRawMode(false); process.stdin.pause(); process.stdout.write(`${ESC}?25h${ESC}?1049l`); };
-    process.stdout.write(`${ESC}?1049h${ESC}?25l`);
+    cleanup = () => { process.stdin.off('data', onKey); if (process.stdin.isTTY && process.stdin.setRawMode) process.stdin.setRawMode(false); process.stdin.pause(); process.stdout.write(`${ESC}?25h${RESTORE_BACKGROUND}${ESC}?1049l`); };
+    process.stdout.write(`${ESC}?1049h${ESC}?25l${PINK_BACKGROUND}`);
     process.stdin.setEncoding('utf8'); process.stdin.setRawMode?.(true); process.stdin.resume(); process.stdin.on('data', async data => { await onKey(data); if (!alive) quit(); });
     process.once('SIGINT', quit); process.once('SIGTERM', quit); process.stdout.on('resize', render); render();
   });
