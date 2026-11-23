@@ -130,7 +130,25 @@ FALIZ_DOWNLOAD_DIR="$HOME/Games/faliz" faliz-games
 faliz-games              Open the interactive catalog
 faliz-games --help       Show help and environment variables
 faliz-games --version    Show the installed version
+faliz-games search <q>   Search the live catalog
+faliz-games info <id>    Print one game record
+faliz-games refresh      Refresh the catalog cache
+faliz-games doctor       Check the local installation
 ```
+
+Read commands accept `--json` for scripts and automation. Downloads performed outside the interactive dashboard require an explicit authorization flag:
+
+```bash
+faliz-games search "racing" --json
+faliz-games info "Example Game" --json
+faliz-games list --downloaded --json
+faliz-games download "Example Game" --dir "$HOME/Games/faliz" --yes
+faliz-games settings get --json
+faliz-games settings set retryCount 3
+faliz-games doctor --json
+```
+
+Interactive TTY sessions use the v0.5.0 alternate-screen dashboard. Use `1–6` or Tab to switch sections, `/` to search, arrow keys to navigate, `D` to download, `F` to favorite, `W` to add a wishlist item, and `Q` or Ctrl+C to leave cleanly. The dashboard is intentionally text-first so it remains usable in Termux, SSH, tmux, and terminals without image protocols.
 
 ### In-session controls
 

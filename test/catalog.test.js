@@ -25,6 +25,13 @@ test('normalizes mixed record field conventions', () => {
   assert.equal(games[0].extension, 'zip');
 });
 
+test('strips terminal control characters from catalog strings', () => {
+  const [game] = normalizeCatalog([{ id: '\u001b[31munsafe\u001b[0m', name: 'Title\u0007', description: 'Desc\u001b[2J' }]);
+  assert.equal(game.id, '[31munsafe[0m');
+  assert.equal(game.name, 'Title');
+  assert.equal(game.description, 'Desc[2J');
+});
+
 test('sorts, filters, and searches games', () => {
   const games = normalizeCatalog(rows);
   assert.equal(sortTopRated(games, 2)[0].name, 'Alpha Quest');

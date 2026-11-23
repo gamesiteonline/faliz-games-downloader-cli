@@ -2,13 +2,16 @@
 import chalk from 'chalk';
 import figlet from 'figlet';
 import ora from 'ora';
+import { createRequire } from 'node:module';
 import { checkbox, confirm, input, select } from '@inquirer/prompts';
 import { downloadGame, formatBytes, getDefaultDownloadDirectory, getDownloadStatus } from './downloader.js';
-import { filterGames, searchGames, sortGames, sortTopRated, syncCatalog, featuredGames, trendingGames, latestGames, uniqueGenres, uniquePlatforms } from './catalog.js';
-import { loadSettings, saveSettings, loadCollection, toggleCollection, addRecentlyViewed, recordDownload, upsertLibrary } from './persistence.js';
+import { filterGames, searchGames, sortGames, sortTopRated, syncCatalog, featuredGames, trendingGames, latestGames, uniqueGenres, uniquePlatforms, getCachePaths } from './catalog.js';
+import { loadSettings, saveSettings, loadCollection, toggleCollection, addRecentlyViewed, recordDownload, upsertLibrary, getPersistencePaths } from './persistence.js';
 import { DownloadQueue } from './queue.js';
+import { runTui } from './tui.js';
 
-const VERSION = '0.4.2';
+const require = createRequire(import.meta.url);
+const { version: VERSION } = require('../package.json');
 const cyan = chalk.hex('#36D1DC');
 const purple = chalk.hex('#8B5CF6');
 const green = chalk.hex('#22C55E');
@@ -101,9 +104,9 @@ function header(sync) {
   const right = [
     dashboardPanel('CATALOG PULSE', summaryRows, main),
     '',
-    dashboardPanel('RECENTLY PLAYED BY THE COMMUNITY', featuredRows, main),
+    dashboardPanel('FEATURED GAMES', featuredRows, main),
     '',
-    dashboardPanel('TOP-RATED THIS MONTH', topRows, main),
+    dashboardPanel('TOP-RATED GAMES', topRows, main),
   ];
   const maxLines = Math.max(left.length, right.length);
   for (let i = 0; i < maxLines; i += 1) {
@@ -117,11 +120,40 @@ function header(sync) {
 }
 
 function printHelp() {
-  console.log(`${logo()}\n\n${chalk.bold('Faliz Games')} — terminal game catalog and downloader\n\nUsage:\n  faliz-games              Open the interactive catalog\n  faliz-games --help       Show this help message\n  faliz-games --version    Show the installed version\n\nEnvironment:\n  FALIZ_CATALOG_URL        Override the live catalog JSON endpoint\n  FALIZ_DOWNLOAD_DIR       Override the download directory\n\nOn Termux, grant shared storage access once with:\n  termux-setup-storage\n`);
+  console.log(`${logo()}\n\n${chalk.bold('Faliz Games')} — terminal game catalog and downloader\n\nUsage:\n  faliz-games              Open the interactive catalog\n  faliz-games --help       Show this help message\n  faliz-games --version    Show the installed version\n  faliz-games search <q> [--json]\n  faliz-games info <id|name> [--json]\n  faliz-games download <id|name> [--dir <path>] [--yes]\n  faliz-games list --downloaded [--json]\n  faliz-games refresh [--json]\n  faliz-games settings get [key] [--json]\n  faliz-games settings set <key> <value>\n  faliz-games doctor [--json]\n\nEnvironment:\n  FALIZ_CATALOG_URL        Override the live catalog JSON endpoint\n  FALIZ_DOWNLOAD_DIR       Override the download directory\n\nOn Termux, grant shared storage access once with:\n  termux-setup-storage\n`);
 }
 
-async function details(game) {
-  const status = await getDownloadStatus(game);
+function outputData(value, asJson) {
+  if (asJson) console.log(JSON.stringify(value, null, 2));
+  else if (Array.isArray(value)) value.forEach((item, index) => console.log(`${String(index + 1).padStart(3, ' ')}  ${item.name ?? item.id ?? item}`));
+  else if (value && typeof value === 'object') Object.entries(value).forEach(([key, item]) => console.log(`${key}: ${item}`));
+  else console.log(value);
+}
+function commandGame(games, query) { const needle = String(query ?? '').toLowerCase(); return games.find(game => game.id.toLowerCase() === needle) ?? games.find(game => game.name.toLowerCase() === needle) ?? games.find(game => game.name.toLowerCase().includes(needle)); }
+
+async function runCommand(args) {
+  const command = args[0];
+  if (!['search', 'info', 'download', 'list', 'refresh', 'settings', 'doctor'].includes(command)) return false;
+  const asJson = args.includes('--json');
+  const settings = await loadSettings();
+  if (command === 'settings') {
+    if (args[1] === 'get') { const key = args.slice(2).find(item => !item.startsWith('--')); outputData(key ? settings[key] : settings, asJson); return true; }
+    if (args[1] === 'set') { const key = args[2]; const value = args.slice(3).filter(item => item !== '--json').join(' '); if (!key || !value || !(key in settings)) throw new Error('Usage: settings set <known-key> <value>'); const parsed = ['maxConcurrentDownloads', 'retryCount', 'requestTimeoutMs'].includes(key) ? Number(value) : value; await saveSettings({ [key]: parsed }); outputData({ saved: true, key, value: parsed }, asJson); return true; }
+    throw new Error('Usage: settings get [key] | settings set <key> <value>');
+  }
+  if (command === 'doctor') { const paths = getPersistencePaths(); const cache = getCachePaths(); const fs = await import('node:fs/promises'); const cachePresent = await fs.access(cache.CACHE_FILE).then(() => true).catch(() => false); outputData({ node: process.version, nodeOk: Number(process.versions.node.split('.')[0]) >= 18, tty: Boolean(process.stdin.isTTY && process.stdout.isTTY), appDirectory: paths.APP_DIR, cachePresent, downloadDirectory: settings.downloadDirectory || getDefaultDownloadDirectory() }, asJson); return true; }
+  const sync = await syncCatalog({ url: settings.catalogUrl || undefined, timeoutMs: settings.requestTimeoutMs });
+  if (command === 'refresh') { outputData({ updated: sync.updated, offline: sync.offline, games: sync.games.length }, asJson); return true; }
+  if (command === 'search') { const query = args.slice(1).filter(item => !item.startsWith('--')).join(' '); const results = searchGames(sync.games, query).slice(0, 100); outputData(asJson ? results : results.map(game => ({ id: game.id, name: game.name, platform: game.platform, rating: game.rating, size: game.size })), asJson); return true; }
+  const query = args.slice(1).filter(item => !item.startsWith('--') && item !== '-y' && item !== '--dir' && item !== args[args.indexOf('--dir') + 1]).join(' ');
+  if (command === 'info') { const game = commandGame(sync.games, query); if (!game) throw new Error('Game not found.'); outputData(game, asJson); return true; }
+  if (command === 'list') { const library = await loadCollection('library'); const results = sync.games.filter(game => library.some(item => String(item?.id ?? item) === game.id)); outputData(results, asJson); return true; }
+  if (command === 'download') { const game = commandGame(sync.games, query); if (!game) throw new Error('Game not found.'); if (!args.includes('--yes') && !args.includes('-y')) throw new Error('Add --yes to confirm an authorized download.'); const dirIndex = args.indexOf('--dir'); const directory = dirIndex >= 0 ? args[dirIndex + 1] : settings.downloadDirectory || getDefaultDownloadDirectory(); const result = await downloadGame(game, { directory, retryCount: settings.retryCount, requestTimeoutMs: settings.requestTimeoutMs }); await recordDownload({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, state: 'completed' }); await upsertLibrary({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, platform: game.platform }); outputData({ name: game.name, filePath: result.filePath, bytes: result.bytes }, asJson); return true; }
+  return true;
+}
+
+async function details(game, directory = getDefaultDownloadDirectory()) {
+  const status = await getDownloadStatus(game, directory);
   await addRecentlyViewed(game);
   console.log(`\n${purple('━'.repeat(columns()))}`);
   console.log(chalk.bold.white(game.name));
@@ -160,7 +192,9 @@ async function chooseGames(games, title, { multiple = true } = {}) {
 
 async function downloadFlow(games) {
   for (const game of games) {
-    const status = await details(game);
+    const settings = await loadSettings();
+    const directory = settings.downloadDirectory || getDefaultDownloadDirectory();
+    const status = await details(game, directory);
     if (!game.downloadUrl) {
       console.log(yellow('\nThis entry has no downloadable file attached.'));
       continue;
@@ -169,13 +203,12 @@ async function downloadFlow(games) {
       const redownload = await confirm({ message: 'This file is already saved. Download again?', default: false });
       if (!redownload) continue;
     }
-    const accepted = await confirm({ message: `Download to ${getDefaultDownloadDirectory()}?`, default: true });
+    const accepted = await confirm({ message: `Download to ${directory}?`, default: true });
     if (!accepted) continue;
     try {
       console.log(cyan(`\n▶ Starting download: ${game.name}`));
       console.log(muted('   Press P to pause/resume or C to cancel. Partial data is preserved.'));
-      const settings = await loadSettings();
-      const result = await downloadGame(game, { directory: settings.downloadDirectory || getDefaultDownloadDirectory(), retryCount: settings.retryCount, requestTimeoutMs: settings.requestTimeoutMs });
+      const result = await downloadGame(game, { directory, retryCount: settings.retryCount, requestTimeoutMs: settings.requestTimeoutMs, onWarning: warning => console.log(yellow(`⚠ ${warning}`)) });
       await recordDownload({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, state: 'completed' });
       await upsertLibrary({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, platform: game.platform });
       console.log(green(`\n✓ Saved ${formatBytes(result.bytes)} to ${result.filePath}`));
@@ -212,16 +245,22 @@ async function showAbout() {
 async function run() {
   if (process.argv.includes('--help') || process.argv.includes('-h')) return printHelp();
   if (process.argv.includes('--version') || process.argv.includes('-v')) return console.log(VERSION);
+  if (await runCommand(process.argv.slice(2))) return;
 
+  const settings = await loadSettings();
   let spinner = ora({ text: 'Syncing the live catalog…', color: 'cyan' }).start();
   let sync;
   try {
-    const settings = await loadSettings();
     sync = await syncCatalog({ url: settings.catalogUrl || undefined, timeoutMs: settings.requestTimeoutMs });
     spinner.succeed(sync.updated ? `Catalog synchronized · ${sync.games.length.toLocaleString()} games` : sync.offline ? 'Using the latest local cache' : 'Catalog is up to date');
   } catch (error) {
     spinner.fail(error.message);
     process.exitCode = 1;
+    return;
+  }
+
+  if (process.stdin.isTTY && process.stdout.isTTY) {
+    await runTui(sync, { ...settings, version: VERSION });
     return;
   }
 
@@ -261,7 +300,7 @@ async function run() {
     }
     if (action === 'refresh') {
       spinner = ora({ text: 'Checking for catalog updates…', color: 'cyan' }).start();
-      try { sync = await syncCatalog({ force: true }); spinner.succeed(`Catalog refreshed · ${sync.games.length.toLocaleString()} games`); }
+      try { const settings = await loadSettings(); sync = await syncCatalog({ force: true, url: settings.catalogUrl || undefined, timeoutMs: settings.requestTimeoutMs }); spinner.succeed(`Catalog refreshed · ${sync.games.length.toLocaleString()} games`); }
       catch (error) { spinner.fail(error.message); await input({ message: 'Press Enter to continue', default: '' }); }
       continue;
     }
@@ -271,7 +310,7 @@ async function run() {
     if (action === 'featured') { games = featuredGames(sync.games); title = 'Featured games — select games';
     } else if (action === 'trending') { games = [...trendingGames(sync.games), ...latestGames(sync.games)].filter((g,i,a)=>a.findIndex(x=>x.id===g.id)===i).slice(0,100); title = 'Trending / latest — select games';
     } else if (action === 'genre' || action === 'platform') { const values = action === 'genre' ? uniqueGenres(sync.games) : uniquePlatforms(sync.games); const value = await select({ message: action === 'genre' ? 'Choose a genre' : 'Choose a platform', choices: values.map(x=>({name:x,value:x})) }); games = filterGames(sync.games, action === 'genre' ? { genre: value } : { platform: value }); title = `${games.length} ${value} games — select games`;
-    } else if (action === 'favorites' || action === 'recent' || action === 'library') { const key = action === 'favorites' ? 'favorites' : action === 'recentlyViewed'; const ids = await loadCollection(key); games = sync.games.filter(g=>ids.some(id=>String(id.id||id)===g.id)); title = `${action} — select games`;
+    } else if (action === 'favorites' || action === 'recent' || action === 'library') { const key = action === 'favorites' ? 'favorites' : action === 'recent' ? 'recentlyViewed' : 'library'; const ids = await loadCollection(key); games = sync.games.filter(g=>ids.some(id=>String(id.id||id)===g.id)); title = `${action} — select games`;
     } else if (action === 'top') {
       games = sortTopRated(sync.games);
       title = 'Top 100 — select games';
