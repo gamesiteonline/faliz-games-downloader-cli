@@ -2,10 +2,9 @@ import chalk from 'chalk';
 import { downloadGame, formatBytes, getDefaultDownloadDirectory, getDownloadStatus } from './downloader.js';
 import { featuredGames, latestGames, searchGames, sortTopRated, trendingGames } from './catalog.js';
 import { loadCollection, loadSettings, recordDownload, toggleCollection, upsertLibrary } from './persistence.js';
+import { arrowDirection, createTerminalGuard, parseKeys } from './terminal.js';
 
 const ESC = '\u001b[';
-const PINK_BACKGROUND = '\u001b]11;#2b1026\u0007';
-const RESTORE_BACKGROUND = '\u001b]11;default\u0007';
 const termuxMode = true;
 const tint = () => value => String(value);
 const accent = tint(chalk.cyan);
@@ -29,7 +28,8 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   const settings = { ...(await loadSettings()), ...initialSettings };
   const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', filePath: '', progress: null, downloads: [], busy: false, selected: null, detail: false };
   let alive = true;
-  let cleanup = () => {};
+  const terminal = createTerminalGuard();
+  let cleanup = () => terminal.cleanup();
 
   function tabGames() {
     if (state.tab === 2) return searchGames(games, state.query);
@@ -123,13 +123,15 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   }
   async function onKey(buffer) {
     const key = buffer.toString();
-    if (key.includes('\u001b[A')) { state.cursor -= 1; render(); return; }
-    if (key.includes('\u001b[B')) { state.cursor += 1; render(); return; }
-    if (key.includes('\u001b[C')) { state.tab = (state.tab + 1) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
-    if (key.includes('\u001b[D')) { state.tab = (state.tab + 5) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
-    if (key.length > 1 && !key.includes('\u001b')) { for (const character of key) await onKey(character); return; }
+    if (key === 'ctrl-c' || key === '\u0003') { alive = false; cleanup(); return; }
+    if (key.length > 1) { for (const part of parseKeys(key)) await onKey(part); return; }
+    const direction = arrowDirection(key);
+    if (direction === 'up') { state.cursor -= 1; render(); return; }
+    if (direction === 'down') { state.cursor += 1; render(); return; }
+    if (direction === 'right') { state.tab = (state.tab + 1) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
+    if (direction === 'left') { state.tab = (state.tab + 5) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
     if (key === '\n') { state.detail = true; render(); return; }
-    if (key === '\u0003' || key.toLowerCase() === 'q') { alive = false; cleanup(); return; }
+    if (key.toLowerCase() === 'q') { alive = false; cleanup(); return; }
     if (key === '\u0009') { state.tab = (state.tab + 1) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
     if (/^[1-6]$/.test(key)) { state.tab = Number(key) - 1; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
     if (key === '/' || (state.tab === 2 && key.length === 1 && key >= ' ' && key <= '~')) { state.tab = 2; if (key !== '/') state.query += key; state.cursor = 0; render(); return; }
@@ -143,9 +145,10 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   }
   await new Promise(resolve => {
     const quit = () => { alive = false; cleanup(); resolve(); };
-    cleanup = () => { process.stdin.off('data', onKey); if (process.stdin.isTTY && process.stdin.setRawMode) process.stdin.setRawMode(false); process.stdin.pause(); process.stdout.write(`${ESC}?25h${RESTORE_BACKGROUND}${ESC}?1049l`); };
-    process.stdout.write(`${ESC}?1049h${ESC}?25l${PINK_BACKGROUND}`);
-    process.stdin.setEncoding('utf8'); process.stdin.setRawMode?.(true); process.stdin.resume(); process.stdin.on('data', async data => { await onKey(data); if (!alive) quit(); });
+    const dataHandler = async data => { try { await onKey(data); } catch (error) { state.message = error?.message || String(error); render(); } if (!alive) quit(); };
+    cleanup = () => { process.stdin.off('data', dataHandler); process.stdout.off('resize', render); process.off('SIGINT', quit); process.off('SIGTERM', quit); terminal.cleanup(); };
+    terminal.enter();
+    process.stdin.setEncoding('utf8'); process.stdin.setRawMode?.(true); process.stdin.resume(); process.stdin.on('data', dataHandler);
     process.once('SIGINT', quit); process.once('SIGTERM', quit); process.stdout.on('resize', render); render();
   });
 }

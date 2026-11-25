@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.5.1 — 2026-11-26
+
+This patch unifies the supplied alternate implementation ideas with the existing secure Faliz Games base.
+
+### Added
+
+- Per-item download queue progress with pause, resume, cancel, retry, duplicate protection, concurrency updates, and clear-finished controls.
+- Reusable downloader control objects and an explicit `DownloadCanceled` error for reliable queue state transitions.
+- Dependency-free terminal capability detection and lifecycle cleanup for plain terminals, NO_COLOR, Termux, SSH, tmux, alternate screens, cursor state, and pink-background restoration.
+- Regression tests for terminal key parsing, terminal capabilities, queue progress, and cancellation.
+
+### Fixed
+
+- Termux-style application-cursor arrow sequences are now recognized.
+- Dashboard cleanup removes the exact input and signal handlers, preventing stale listeners after exit.
+- A downloader that resolves after cancellation cannot incorrectly report a completed queue item.
+
+### Release status
+
+The version is verified locally. It has not been published to npm or pushed to GitHub.
+
 ## 0.5.0 — 2026-11-24
 
 This release completes the Phase 1–3 local implementation pass.

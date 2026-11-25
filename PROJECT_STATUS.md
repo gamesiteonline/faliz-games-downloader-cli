@@ -1,8 +1,16 @@
 # Faliz Games Downloader — Project Status
 
 **Repository:** `gamesiteonline/faliz-games-downloader-cli`
-**Current version:** `0.5.0`
-**Last updated:** 2026-11-24
+**Current version:** `0.5.1`
+**Last updated:** 2026-11-26
+
+## v0.5.1 unified implementation
+
+- Compared the two supplied ZIP implementations and retained the current catalog/download safety layer while merging the alternate implementation's stronger queue and terminal-testing ideas.
+- `DownloadQueue` now supports per-item progress, pause/resume/cancel/retry, concurrency changes, duplicate protection, clear-finished, and global controls.
+- Downloader controls are reusable through an explicit cancellation type and pause/resume control object; partial files remain resumable and files are never auto-executed.
+- Added a dependency-free terminal capability/lifecycle layer for NO_COLOR, dumb terminals, Termux, SSH, tmux, resize, alternate-screen, cursor, background, and signal cleanup.
+- Added regression coverage for key parsing, terminal capability detection, queue progress, and cancellation semantics.
 
 ## Completed in v0.5.0
 
@@ -35,18 +43,18 @@
 The current local verification is passing:
 
 ```text
-9 tests passed
+12 tests passed
 0 failed
 npm run pack:check passed
-node --check src/index.js src/tui.js src/downloader.js src/queue.js passed
+node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal.js passed
 ```
 
 ## Deliberately not done
 
-- No npm publication or GitHub push has been performed for v0.5.0.
+- No npm publication or GitHub push has been performed for v0.5.1.
 - The dashboard uses a dependency-light ANSI TUI rather than adding Ink/React, which keeps the package smaller and improves Termux compatibility.
 - Cover art is represented by metadata and text-first cards; network image fetching is intentionally not part of this release.
-- Snapshot tests at three terminal widths and a full live-download integration test still need to be added before a formal public release.
+- Full-width visual snapshot coverage and a live-download integration test remain useful follow-up coverage before a formal public release.
 
 ## Release checklist
 
@@ -55,6 +63,6 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js passed
 - [x] Run npm pack validation.
 - [x] Update README and changelog.
 - [ ] Add width snapshot tests and live mocked transfer tests.
-- [ ] Review the final diff and commit v0.5.0.
+- [ ] Review the final diff and commit v0.5.1.
 - [ ] Push to GitHub only with authorization.
 - [ ] Publish to npm only with explicit authorization.

@@ -52,6 +52,29 @@ export function isTransientError(error) {
 export function retryDelay(attempt) { return Math.min(1000 * 2 ** attempt, 10000) + Math.floor(Math.random() * 100); }
 export function checksumMatches(actual, expected) { return !expected || actual.toLowerCase() === String(expected).replace(/^sha256:/i, '').toLowerCase(); }
 
+export class DownloadCanceled extends Error {
+  constructor(message = 'Download canceled; partial data was preserved for resume.') {
+    super(message);
+    this.name = 'DownloadCanceled';
+  }
+}
+
+export function createControl() {
+  let paused = false;
+  let canceled = false;
+  const listeners = new Set();
+  const control = {
+    get paused() { return paused; },
+    get canceled() { return canceled; },
+    pause() { paused = true; for (const fn of listeners) fn(); },
+    resume() { paused = false; for (const fn of listeners) fn(); },
+    cancel() { canceled = true; for (const fn of listeners) fn(); },
+    wait() { return paused && !canceled ? new Promise(resolve => listeners.add(resolve)) : Promise.resolve(); },
+    subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+  };
+  return control;
+}
+
 async function diskPreflight(directory, bytes) {
   if (!bytes || typeof fsPromises.statfs !== 'function') return;
   const stat = await fsPromises.statfs(directory);
@@ -128,7 +151,7 @@ async function verifyPartial(file, checksum) {
   return true;
 }
 
-export async function downloadGame(game, { directory = getDefaultDownloadDirectory(), fetchImpl = fetch, onProgress = () => {}, signal: externalSignal, retryCount = 2, requestTimeoutMs = 30000, stallTimeoutMs = Math.max(10000, requestTimeoutMs), onWarning = () => {}, showProgress = true } = {}) {
+export async function downloadGame(game, { directory = getDefaultDownloadDirectory(), fetchImpl = fetch, onProgress = () => {}, signal: externalSignal, control = null, retryCount = 2, requestTimeoutMs = 30000, stallTimeoutMs = Math.max(10000, requestTimeoutMs), onWarning = () => {}, showProgress = true } = {}) {
   if (!game.downloadUrl) throw new Error('This catalog item does not have a download URL.');
   const url = new URL(game.downloadUrl);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Only HTTP(S) download URLs are supported.');
@@ -139,6 +162,7 @@ export async function downloadGame(game, { directory = getDefaultDownloadDirecto
   const existing = await fsPromises.stat(partialPath).then(stat => stat.size).catch(() => 0);
   await diskPreflight(directory, Math.max(0, (game.sizeBytes || 0) - existing));
   const controller = new AbortController(); const abort = () => controller.abort();
+  const unsubscribeControl = control?.subscribe(() => { if (control.canceled) controller.abort(); });
   if (externalSignal?.aborted) abort(); else externalSignal?.addEventListener('abort', abort, { once: true });
   process.once('SIGINT', abort);
   try {
@@ -159,8 +183,8 @@ export async function downloadGame(game, { directory = getDefaultDownloadDirecto
     const wake = () => { if (waiter) { const resolve = waiter; waiter = null; resolve(); } };
     const toggle = () => { paused = !paused; if (!paused) wake(); };
     const cancel = () => { controller.abort(); wake(); };
-    const waitIfPaused = () => paused ? new Promise(resolve => { waiter = resolve; if (controller.signal.aborted) { waiter = null; resolve(); } }) : Promise.resolve();
-    const disable = controls(toggle, cancel);
+    const waitIfPaused = () => control ? control.wait() : (paused ? new Promise(resolve => { waiter = resolve; if (controller.signal.aborted) { waiter = null; resolve(); } }) : Promise.resolve());
+    const disable = control ? () => {} : controls(toggle, cancel);
     try {
       if (!response.body) throw new Error('The server returned an empty response body.');
       const reader = response.body.getReader();
@@ -169,6 +193,7 @@ export async function downloadGame(game, { directory = getDefaultDownloadDirecto
         if (part.done) break;
         if (controller.signal.aborted) throw Object.assign(new Error('Download canceled; partial data was preserved for resume.'), { name: 'AbortError' });
         await waitIfPaused();
+        if (control?.canceled) throw new DownloadCanceled();
         if (!writer.write(part.value)) await once(writer, 'drain');
         downloaded += part.value.length;
         const now = Date.now();
@@ -180,7 +205,8 @@ export async function downloadGame(game, { directory = getDefaultDownloadDirecto
     await fsPromises.rename(partialPath, finalPath).catch(async () => { await fsPromises.copyFile(partialPath, finalPath); await fsPromises.unlink(partialPath); });
     return { filePath: finalPath, bytes: downloaded, resumed: append, alreadyComplete: false };
   } catch (error) {
-    if (error?.name === 'AbortError' || controller.signal.aborted) throw new Error('Download interrupted; partial data was preserved for resume.');
+    if (control?.canceled) throw new DownloadCanceled();
+    if (error?.name === 'AbortError' || controller.signal.aborted) throw new DownloadCanceled('Download interrupted; partial data was preserved for resume.');
     throw error;
-  } finally { process.removeListener('SIGINT', abort); externalSignal?.removeEventListener('abort', abort); }
+  } finally { unsubscribeControl?.(); process.removeListener('SIGINT', abort); externalSignal?.removeEventListener('abort', abort); }
 }
