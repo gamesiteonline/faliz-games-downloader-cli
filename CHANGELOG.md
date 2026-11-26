@@ -19,7 +19,7 @@ This patch unifies the supplied alternate implementation ideas with the existing
 
 ### Release status
 
-The version is verified locally. It has not been published to npm or pushed to GitHub.
+The version was verified locally and pushed to the public GitHub repository in commit `d3182ea`. It has not been published to npm.
 
 ## 0.5.0 — 2026-11-24
 

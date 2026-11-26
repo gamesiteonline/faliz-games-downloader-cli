@@ -51,7 +51,7 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal
 
 ## Deliberately not done
 
-- No npm publication or GitHub push has been performed for v0.5.1.
+- GitHub deployment for v0.5.1 is complete at commit `d3182ea`; npm publication is still pending authentication and explicit publication.
 - The dashboard uses a dependency-light ANSI TUI rather than adding Ink/React, which keeps the package smaller and improves Termux compatibility.
 - Cover art is represented by metadata and text-first cards; network image fetching is intentionally not part of this release.
 - Full-width visual snapshot coverage and a live-download integration test remain useful follow-up coverage before a formal public release.
@@ -63,6 +63,6 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal
 - [x] Run npm pack validation.
 - [x] Update README and changelog.
 - [ ] Add width snapshot tests and live mocked transfer tests.
-- [ ] Review the final diff and commit v0.5.1.
-- [ ] Push to GitHub only with authorization.
+- [x] Review the final diff and commit v0.5.1.
+- [x] Push to GitHub with authorization.
 - [ ] Publish to npm only with explicit authorization.
