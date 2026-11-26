@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.6 — 2026-11-26
+
+### Changed
+
+- Replaced detail-card shortcut-only instructions with a visible selectable action menu.
+- Game cards now support arrow selection and Enter confirmation for Download game, Add to favorites, Add to wishlist, and Back to games.
+- Downloads remain inside the dashboard flow instead of requiring hidden letter commands or terminating the terminal session.
+
+### Release status
+
+Verified locally. GitHub deployment and npm publication are pending.
+
 ## 0.5.5 — 2026-11-26
 
 ### Fixed

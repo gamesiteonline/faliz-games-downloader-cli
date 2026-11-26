@@ -29,7 +29,7 @@ function progressLine(progress) { if (!progress) return ''; const total = Number
 
 export async function runTui({ games, offline = false }, initialSettings = {}) {
   const settings = { ...(await loadSettings()), ...initialSettings };
-  const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', filePath: '', progress: null, downloads: [], busy: false, selected: null, detail: false };
+  const state = { tab: 0, cursor: 0, actionCursor: 0, query: '', libraryTab: 0, message: '', filePath: '', progress: null, downloads: [], busy: false, selected: null, detail: false };
   let alive = true;
   const terminal = createTerminalGuard();
   let keyRemainder = '';
@@ -85,6 +85,7 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
     state.cursor = Math.max(0, Math.min(state.cursor, Math.max(0, list.length - 1)));
     const selected = list[state.cursor];
     if (state.detail && selected) {
+      const actions = ['Download game', 'Add to favorites', 'Add to wishlist', 'Back to games'];
       const detailLines = [
         `${accent('◈')} ${selected.name}`,
         `${accent('Platform:')} ${selected.platform}    ${purple('Format:')} ${formatLabel(selected)}    ${yellow('Rating:')} ${stars(selected.rating)} ${selected.ratingLabel}`,
@@ -98,7 +99,8 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
         '',
         clean(selected.description) || muted('No description available.'),
       ];
-      const detailOutput = [`${accent('FALIZ GAMES')}  ${muted('/// GAME CARD')}`, '', ...box('GAME DETAILS', detailLines, width() - 4, Math.max(5, height() - 9)), '', muted('↑↓ change game  D download  F favorite  W wishlist  Esc back  Q quit')];
+      const actionMenu = actions.map((action, index) => `${index === state.actionCursor ? '▶' : ' '} ${index + 1}. ${action}`);
+      const detailOutput = [`${accent('FALIZ GAMES')}  ${muted('/// GAME CARD')}`, '', ...box('GAME DETAILS', detailLines, width() - 4, Math.max(4, height() - 15)), '', accent('ACTIONS'), ...actionMenu, muted('↑↓ select  Enter confirm  ←→ change game  Esc back  Q quit')];
       process.stdout.write(`${ESC}2J${ESC}H${detailOutput.slice(0, height() - 1).join('\n')}`);
       return;
     }
@@ -130,12 +132,29 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   async function onKey(buffer) {
     const key = buffer.toString();
     if (key === 'ctrl-c' || key === '\u0003') { alive = false; cleanup(); return; }
+    if (state.detail) {
+      if (key === '\u001b') { state.detail = false; render(); return; }
+      const detailDirection = arrowDirection(key);
+      if (detailDirection === 'up') { state.actionCursor = (state.actionCursor + 3) % 4; render(); return; }
+      if (detailDirection === 'down') { state.actionCursor = (state.actionCursor + 1) % 4; render(); return; }
+      if (detailDirection === 'left') { state.cursor -= 1; render(); return; }
+      if (detailDirection === 'right') { state.cursor += 1; render(); return; }
+      if (key === '\r' || key === '\n') {
+        if (state.actionCursor === 0) await downloadSelected();
+        else if (state.actionCursor === 1) await toggle('favorites');
+        else if (state.actionCursor === 2) await toggle('wishlist');
+        else { state.detail = false; render(); }
+        return;
+      }
+      if (key.toLowerCase() === 'q') { alive = false; cleanup(); return; }
+      return;
+    }
     const direction = arrowDirection(key);
     if (direction === 'up') { state.cursor -= 1; render(); return; }
     if (direction === 'down') { state.cursor += 1; render(); return; }
     if (direction === 'right') { state.tab = (state.tab + 1) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
     if (direction === 'left') { state.tab = (state.tab + 5) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
-    if (key === '\n') { state.detail = true; render(); return; }
+    if (key === '\n') { state.actionCursor = 0; state.detail = true; render(); return; }
     if (key.toLowerCase() === 'q') { alive = false; cleanup(); return; }
     if (key === '\u0009') { state.tab = (state.tab + 1) % 6; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
     if (/^[1-6]$/.test(key)) { state.tab = Number(key) - 1; state.cursor = 0; if (state.tab === 3) await refreshLibrary(); render(); return; }
@@ -146,7 +165,7 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
     if (key === 'f' || key === 'F') { await toggle('favorites'); return; }
     if (key === 'w' || key === 'W') { await toggle('wishlist'); return; }
     if (key === '\u001b') { state.detail = false; render(); return; }
-    if (key === '\r') { const game = visibleGames()[state.cursor]; if (game) { state.detail = true; render(); } return; }
+    if (key === '\r') { const game = visibleGames()[state.cursor]; if (game) { state.actionCursor = 0; state.detail = true; render(); } return; }
   }
   await new Promise(resolve => {
     const quit = () => { alive = false; cleanup(); resolve(); };

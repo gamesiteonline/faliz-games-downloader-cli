@@ -148,16 +148,16 @@ faliz-games settings set retryCount 3
 faliz-games doctor --json
 ```
 
-Interactive TTY sessions use the v0.5.0 alternate-screen dashboard. Use `1–6` or Tab to switch sections, `/` to search, arrow keys to navigate, `D` to download, `F` to favorite, `W` to add a wishlist item, and `Q` or Ctrl+C to leave cleanly. The dashboard is intentionally text-first so it remains usable in Termux, SSH, tmux, and terminals without image protocols.
+Interactive TTY sessions use the alternate-screen dashboard. Use `1–6` or Tab to switch sections, `/` to search, and arrow keys to navigate. Open a game card with Enter; its visible action menu lets you select **Download game**, **Add to favorites**, **Add to wishlist**, or **Back to games**, then press Enter to confirm. The dashboard is intentionally text-first so it remains usable in Termux, SSH, tmux, and terminals without image protocols.
 
 ### In-session controls
 
 ```text
-↑ / ↓       Move through the catalog
-Space       Select multiple games
-Enter       Open a view or start the queue
-P           Pause or resume an active download
-C           Cancel an active download and preserve its partial file
+↑ / ↓       Move through the catalog or select a card action
+← / →       Change section, or change game inside a card
+Enter       Open a card or confirm the highlighted card action
+Esc         Return from a card to the catalog
+P / C       Pause/resume or cancel an active transfer where supported
 Ctrl+C      Interrupt safely and keep resumable data
 ```
 
