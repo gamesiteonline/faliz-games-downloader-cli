@@ -5,13 +5,12 @@ import { loadCollection, loadSettings, recordDownload, toggleCollection, upsertL
 import { arrowDirection, consumeKeys, createTerminalGuard } from './terminal.js';
 
 const ESC = '\u001b[';
-const termuxMode = true;
-const tint = () => value => String(value);
-const accent = tint(chalk.cyan);
-const purple = tint(chalk.magenta);
-const green = tint(chalk.green);
-const yellow = tint(chalk.yellowBright);
-const muted = tint(chalk.gray);
+const termuxMode = Boolean(process.env.TERMUX_VERSION || process.env.PREFIX?.includes('com.termux'));
+const accent = chalk.cyan;
+const purple = chalk.magenta;
+const green = chalk.green;
+const yellow = chalk.yellowBright;
+const muted = chalk.gray;
 
 function width() { return Math.max(50, Number(process.stdout.columns) || 80); }
 function height() { return Math.max(16, Number(process.stdout.rows) || 24); }

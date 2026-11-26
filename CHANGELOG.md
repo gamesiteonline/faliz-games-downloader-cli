@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.3 — 2026-11-26
+
+### Fixed
+
+- Restored intentional terminal colors in the full-screen TUI; the previous leftover wrapper stripped all styling.
+- Detect Termux from the environment for emoji star rendering instead of hard-coding Termux mode on every terminal.
+- Retained the v0.5.2 buffered arrow-key parser so split Termux escape sequences remain navigable.
+
+### Release status
+
+Verified locally. GitHub deployment and npm publication are pending.
+
 ## 0.5.2 — 2026-11-26
 
 ### Fixed
