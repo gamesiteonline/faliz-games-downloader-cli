@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { downloadGame, formatBytes, getDefaultDownloadDirectory, getDownloadStatus } from './downloader.js';
 import { featuredGames, latestGames, searchGames, sortTopRated, trendingGames } from './catalog.js';
 import { loadCollection, loadSettings, recordDownload, toggleCollection, upsertLibrary } from './persistence.js';
-import { arrowDirection, createTerminalGuard, parseKeys } from './terminal.js';
+import { arrowDirection, consumeKeys, createTerminalGuard } from './terminal.js';
 
 const ESC = '\u001b[';
 const termuxMode = true;
@@ -29,6 +29,7 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   const state = { tab: 0, cursor: 0, query: '', libraryTab: 0, message: '', filePath: '', progress: null, downloads: [], busy: false, selected: null, detail: false };
   let alive = true;
   const terminal = createTerminalGuard();
+  let keyRemainder = '';
   let cleanup = () => terminal.cleanup();
 
   function tabGames() {
@@ -124,7 +125,6 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   async function onKey(buffer) {
     const key = buffer.toString();
     if (key === 'ctrl-c' || key === '\u0003') { alive = false; cleanup(); return; }
-    if (key.length > 1) { for (const part of parseKeys(key)) await onKey(part); return; }
     const direction = arrowDirection(key);
     if (direction === 'up') { state.cursor -= 1; render(); return; }
     if (direction === 'down') { state.cursor += 1; render(); return; }
@@ -145,7 +145,14 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   }
   await new Promise(resolve => {
     const quit = () => { alive = false; cleanup(); resolve(); };
-    const dataHandler = async data => { try { await onKey(data); } catch (error) { state.message = error?.message || String(error); render(); } if (!alive) quit(); };
+    const dataHandler = async data => {
+      try {
+        const parsed = consumeKeys(data, keyRemainder);
+        keyRemainder = parsed.rest;
+        for (const key of parsed.keys) await onKey(key);
+      } catch (error) { state.message = error?.message || String(error); render(); }
+      if (!alive) quit();
+    };
     cleanup = () => { process.stdin.off('data', dataHandler); process.stdout.off('resize', render); process.off('SIGINT', quit); process.off('SIGTERM', quit); terminal.cleanup(); };
     terminal.enter();
     process.stdin.setEncoding('utf8'); process.stdin.setRawMode?.(true); process.stdin.resume(); process.stdin.on('data', dataHandler);

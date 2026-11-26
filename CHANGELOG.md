@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 — 2026-11-26
+
+### Fixed
+
+- Buffered fragmented ANSI escape sequences from Termux so arrow-key navigation works reliably when Escape, `[`, and the direction byte arrive in separate input events.
+- Recognized application-cursor and modified arrow sequences without interpreting them as separate commands.
+
+### Release status
+
+Verified locally. GitHub deployment is pending this release commit; npm publication is pending.
+
 ## 0.5.1 — 2026-11-26
 
 This patch unifies the supplied alternate implementation ideas with the existing secure Faliz Games base.

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DownloadQueue } from '../src/queue.js';
 import { DownloadCanceled, createControl } from '../src/downloader.js';
-import { capabilities, parseKeys, arrowDirection } from '../src/terminal.js';
+import { capabilities, parseKeys, consumeKeys, arrowDirection } from '../src/terminal.js';
 
 const game = { id: 'g1', name: 'Test Game', sizeBytes: 100 };
 
@@ -12,6 +12,10 @@ test('terminal helpers normalize common Termux and plain-terminal input', () => 
   assert.equal(arrowDirection('\u001bOB'), 'down');
   assert.equal(capabilities({ isTTY: false }, { TERM: 'xterm' }).color, false);
   assert.equal(capabilities({ isTTY: true }, { TERM: 'dumb' }).background, false);
+  assert.deepEqual(consumeKeys('\u001b', '').rest, '\u001b');
+  assert.deepEqual(consumeKeys('[', '\u001b').rest, '\u001b[');
+  assert.deepEqual(consumeKeys('A', '\u001b['), { keys: ['\u001b[A'], rest: '' });
+  assert.equal(arrowDirection('\u001b[1;2A'), 'up');
 });
 
 test('queue exposes progress and per-item pause/resume/cancel controls', async () => {

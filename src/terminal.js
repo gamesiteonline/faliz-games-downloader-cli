@@ -31,8 +31,49 @@ export function parseKeys(chunk) {
   return keys;
 }
 
+/** Consume complete key tokens while retaining a split escape sequence for the next stdin chunk. */
+export function consumeKeys(chunk, carry = '') {
+  const value = `${carry}${String(chunk ?? '')}`;
+  const keys = [];
+  let i = 0;
+  while (i < value.length) {
+    const start = i;
+    const code = value.charCodeAt(i);
+    if (code === 0x1b) {
+      if (i + 1 >= value.length) return { keys, rest: value.slice(start) };
+      const next = value[i + 1];
+      if (next === '[') {
+        let end = i + 2;
+        while (end < value.length && !(/[A-Za-z~]/.test(value[end]))) end += 1;
+        if (end >= value.length) return { keys, rest: value.slice(start) };
+        keys.push(value.slice(start, end + 1));
+        i = end + 1;
+        continue;
+      }
+      if (next === 'O') {
+        if (i + 2 >= value.length) return { keys, rest: value.slice(start) };
+        keys.push(value.slice(start, i + 3));
+        i += 3;
+        continue;
+      }
+      keys.push(value.slice(start, start + 1));
+      i += 1;
+      continue;
+    }
+    if (code === 0x03) { keys.push('ctrl-c'); i += 1; continue; }
+    if (code === 0x0d || code === 0x0a || code === 0x7f || code === 0x08) { keys.push(value.slice(start, start + 1)); i += 1; continue; }
+    const point = value.codePointAt(i);
+    const char = String.fromCodePoint(point);
+    keys.push(char);
+    i += char.length;
+  }
+  return { keys, rest: '' };
+}
+
 export function arrowDirection(key) {
-  return { '\u001b[A': 'up', '\u001bOA': 'up', '\u001b[B': 'down', '\u001bOB': 'down', '\u001b[C': 'right', '\u001bOC': 'right', '\u001b[D': 'left', '\u001bOD': 'left' }[key] || null;
+  const direct = { '\u001b[A': 'up', '\u001bOA': 'up', '\u001b[B': 'down', '\u001bOB': 'down', '\u001b[C': 'right', '\u001bOC': 'right', '\u001b[D': 'left', '\u001bOD': 'left' }[key];
+  if (direct) return direct;
+  return /^\u001b\[[0-9;?]*A$/.test(key) ? 'up' : /^\u001b\[[0-9;?]*B$/.test(key) ? 'down' : /^\u001b\[[0-9;?]*C$/.test(key) ? 'right' : /^\u001b\[[0-9;?]*D$/.test(key) ? 'left' : null;
 }
 
 export function createTerminalGuard({ input = process.stdin, output = process.stdout } = {}) {

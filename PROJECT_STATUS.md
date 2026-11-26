@@ -1,7 +1,7 @@
 # Faliz Games Downloader — Project Status
 
 **Repository:** `gamesiteonline/faliz-games-downloader-cli`
-**Current version:** `0.5.1`
+**Current version:** `0.5.2`
 **Last updated:** 2026-11-26
 
 ## v0.5.1 unified implementation
@@ -11,6 +11,11 @@
 - Downloader controls are reusable through an explicit cancellation type and pause/resume control object; partial files remain resumable and files are never auto-executed.
 - Added a dependency-free terminal capability/lifecycle layer for NO_COLOR, dumb terminals, Termux, SSH, tmux, resize, alternate-screen, cursor, background, and signal cleanup.
 - Added regression coverage for key parsing, terminal capability detection, queue progress, and cancellation semantics.
+
+## v0.5.2 navigation fix
+
+- Termux arrow sequences are now buffered across separate stdin events, fixing dashboards where navigation appeared to work only through Enter or letter commands.
+- Application-cursor and modified arrow sequences are recognized as navigation rather than discarded fragments.
 
 ## Completed in v0.5.0
 
@@ -51,7 +56,7 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal
 
 ## Deliberately not done
 
-- GitHub deployment for v0.5.1 is complete at commit `d3182ea`; npm publication is still pending authentication and explicit publication.
+- GitHub deployment for v0.5.1 is complete at commit `d3182ea`; v0.5.2 is ready for deployment after verification.
 - The dashboard uses a dependency-light ANSI TUI rather than adding Ink/React, which keeps the package smaller and improves Termux compatibility.
 - Cover art is represented by metadata and text-first cards; network image fetching is intentionally not part of this release.
 - Full-width visual snapshot coverage and a live-download integration test remain useful follow-up coverage before a formal public release.
@@ -64,5 +69,6 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal
 - [x] Update README and changelog.
 - [ ] Add width snapshot tests and live mocked transfer tests.
 - [x] Review the final diff and commit v0.5.1.
-- [x] Push to GitHub with authorization.
+- [x] Push v0.5.1 to GitHub with authorization.
+- [ ] Push v0.5.2 to GitHub.
 - [ ] Publish to npm only with explicit authorization.
