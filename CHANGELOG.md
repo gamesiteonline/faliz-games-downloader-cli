@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.4 — 2026-11-26
+
+### Fixed
+
+- Disabled fragile color escape output in Termux so `[36m`, `[39m`, and similar sequences cannot appear as visible text.
+- Added clear dashboard feedback for missing download links, active downloads, download warnings, saved files, and exact failures.
+- Guaranteed stdin/raw-mode restoration after a download attempt, including errors.
+
+### Release status
+
+Verified locally. GitHub deployment and npm publication are pending.
+
 ## 0.5.3 — 2026-11-26
 
 ### Fixed

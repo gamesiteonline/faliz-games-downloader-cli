@@ -6,11 +6,15 @@ import { arrowDirection, consumeKeys, createTerminalGuard } from './terminal.js'
 
 const ESC = '\u001b[';
 const termuxMode = Boolean(process.env.TERMUX_VERSION || process.env.PREFIX?.includes('com.termux'));
-const accent = chalk.cyan;
-const purple = chalk.magenta;
-const green = chalk.green;
-const yellow = chalk.yellowBright;
-const muted = chalk.gray;
+// Some Termux shells pass escape bytes through as visible text. Keep the
+// dashboard plain-safe there; the pink background and layout remain intact.
+const useColors = !termuxMode && chalk.level > 0 && !('NO_COLOR' in process.env);
+const style = (fn, value) => useColors ? fn(value) : String(value);
+const accent = value => style(chalk.cyan, value);
+const purple = value => style(chalk.magenta, value);
+const green = value => style(chalk.green, value);
+const yellow = value => style(chalk.yellowBright, value);
+const muted = value => style(chalk.gray, value);
 
 function width() { return Math.max(50, Number(process.stdout.columns) || 80); }
 function height() { return Math.max(16, Number(process.stdout.rows) || 24); }
@@ -51,7 +55,9 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
   }
   async function downloadSelected() {
     const game = visibleGames()[state.cursor];
-    if (!game || state.busy) return;
+    if (!game) { state.message = 'No game is selected.'; render(); return; }
+    if (state.busy) { state.message = 'A download is already active; open Downloads to monitor it.'; render(); return; }
+    if (!game.downloadUrl) { state.message = `Download unavailable: ${game.name} has no downloadable file link.`; render(); return; }
     state.busy = true; state.filePath = ''; state.progress = { downloaded: 0, total: game.sizeBytes || 0, speed: 0 }; state.message = `Starting ${game.name}…`;
     const item = state.downloads.find(entry => entry.id === game.id) || { id: game.id, name: game.name };
     Object.assign(item, { state: 'downloading', progress: state.progress, message: 'Starting…', filePath: '' });
@@ -63,11 +69,13 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
       await recordDownload({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, state: 'completed' });
       await upsertLibrary({ id: game.id, name: game.name, filePath: result.filePath, bytes: result.bytes, platform: game.platform });
       state.progress = { downloaded: result.bytes, total: game.sizeBytes || result.bytes, speed: 0 }; state.filePath = result.filePath; state.message = `Saved ${game.name} · ${formatBytes(result.bytes)}`; Object.assign(item, { state: 'done', progress: state.progress, message: state.message, filePath: result.filePath });
-    } catch (error) { state.message = error.message; Object.assign(item, { state: 'failed', message: error.message }); }
-    state.busy = false;
-    if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') process.stdin.setRawMode(true);
-    process.stdin.resume();
-    render();
+    } catch (error) { state.message = `Download failed: ${error?.message || String(error)}`; Object.assign(item, { state: 'failed', message: state.message }); }
+    finally {
+      state.busy = false;
+      if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') process.stdin.setRawMode(true);
+      process.stdin.resume();
+      render();
+    }
   }
   async function toggle(key) { const game = visibleGames()[state.cursor]; if (!game) return; await toggleCollection(key, game.id); state.message = `${key === 'favorites' ? 'Favorite' : 'Wishlist'} updated for ${game.name}`; if (state.tab === 3) await refreshLibrary(); render(); }
   function render() {

@@ -1,7 +1,7 @@
 # Faliz Games Downloader — Project Status
 
 **Repository:** `gamesiteonline/faliz-games-downloader-cli`
-**Current version:** `0.5.3`
+**Current version:** `0.5.4`
 **Last updated:** 2026-11-26
 
 ## v0.5.1 unified implementation
@@ -22,6 +22,11 @@
 - Compared the supplied v0.5.3 archive against the current v0.5.2 tree.
 - Merged its two substantive improvements: restored TUI colors and environment-based Termux detection.
 - Kept the current buffered navigation parser, secure downloader, queue controls, and terminal lifecycle unchanged.
+
+## v0.5.4 Termux download and ANSI fix
+
+- Termux TUI styling is now plain-safe, preventing visible ANSI fragments such as `[36m` and `[39m`.
+- Download actions report unavailable links and exact transfer failures, and always restore stdin/raw mode afterward.
 
 ## Completed in v0.5.0
 
@@ -62,7 +67,7 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal
 
 ## Deliberately not done
 
-- GitHub deployment for v0.5.2 is complete at commit `867144b`; v0.5.3 is ready for deployment after verification.
+- GitHub deployment for v0.5.3 is complete at commit `abfbf6a`; v0.5.4 is ready for deployment after verification.
 - The dashboard uses a dependency-light ANSI TUI rather than adding Ink/React, which keeps the package smaller and improves Termux compatibility.
 - Cover art is represented by metadata and text-first cards; network image fetching is intentionally not part of this release.
 - Full-width visual snapshot coverage and a live-download integration test remain useful follow-up coverage before a formal public release.
@@ -75,7 +80,8 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal
 - [x] Update README and changelog.
 - [ ] Add width snapshot tests and live mocked transfer tests.
 - [x] Review the final diff and commit v0.5.1.
-- [x] Push v0.5.1 to GitHub with authorization.
-- [x] Push v0.5.2 to GitHub.
+- [x] Push v0.5.2 to GitHub with authorization.
+- [x] Push v0.5.3 to GitHub.
+- [ ] Push v0.5.4 to GitHub.
 - [ ] Push v0.5.3 to GitHub.
 - [ ] Publish to npm only with explicit authorization.
