@@ -1,7 +1,7 @@
 # Faliz Games Downloader — Project Status
 
 **Repository:** `gamesiteonline/faliz-games-downloader-cli`
-**Current version:** `0.5.4`
+**Current version:** `0.5.5`
 **Last updated:** 2026-11-26
 
 ## v0.5.1 unified implementation
@@ -27,6 +27,11 @@
 
 - Termux TUI styling is now plain-safe, preventing visible ANSI fragments such as `[36m` and `[39m`.
 - Download actions report unavailable links and exact transfer failures, and always restore stdin/raw mode afterward.
+
+## v0.5.5 narrow detail-card fix
+
+- Responsive detail-card sizing keeps the action footer visible on small Termux screens.
+- Status, progress, and saved-file information are prioritized ahead of long descriptions so download activity is not hidden.
 
 ## Completed in v0.5.0
 
@@ -67,7 +72,7 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal
 
 ## Deliberately not done
 
-- GitHub deployment for v0.5.3 is complete at commit `abfbf6a`; v0.5.4 is ready for deployment after verification.
+- GitHub deployment for v0.5.4 is complete at commit `ee4d7a8`; v0.5.5 is ready for deployment after verification.
 - The dashboard uses a dependency-light ANSI TUI rather than adding Ink/React, which keeps the package smaller and improves Termux compatibility.
 - Cover art is represented by metadata and text-first cards; network image fetching is intentionally not part of this release.
 - Full-width visual snapshot coverage and a live-download integration test remain useful follow-up coverage before a formal public release.
@@ -82,6 +87,7 @@ node --check src/index.js src/tui.js src/downloader.js src/queue.js src/terminal
 - [x] Review the final diff and commit v0.5.1.
 - [x] Push v0.5.2 to GitHub with authorization.
 - [x] Push v0.5.3 to GitHub.
-- [ ] Push v0.5.4 to GitHub.
+- [x] Push v0.5.4 to GitHub.
+- [ ] Push v0.5.5 to GitHub.
 - [ ] Push v0.5.3 to GitHub.
 - [ ] Publish to npm only with explicit authorization.

@@ -20,7 +20,7 @@ function width() { return Math.max(50, Number(process.stdout.columns) || 80); }
 function height() { return Math.max(16, Number(process.stdout.rows) || 24); }
 function clean(value) { return String(value ?? '').replace(/[\u0000-\u001f\u007f\u001b]/g, '').trim(); }
 function fit(value, size) { const text = clean(value); return text.length > size ? `${text.slice(0, Math.max(0, size - 1))}…` : text.padEnd(size); }
-function box(title, lines, size = width() - 4) { const inner = Math.max(12, size - 4); const expanded = lines.flatMap(line => String(line).split('\n')); const top = `╭─ ${title} ${'─'.repeat(Math.max(0, inner - title.length - 3))}╮`; const body = expanded.slice(0, height() - 8).map(line => `│ ${fit(line, inner)} │`); return [top, ...body, `╰${'─'.repeat(inner + 2)}╯`]; }
+function box(title, lines, size = width() - 4, maxBody = height() - 8) { const inner = Math.max(12, size - 4); const expanded = lines.flatMap(line => String(line).split('\n')); const top = `╭─ ${title} ${'─'.repeat(Math.max(0, inner - title.length - 3))}╮`; const body = expanded.slice(0, Math.max(1, maxBody)).map(line => `│ ${fit(line, inner)} │`); return [top, ...body, `╰${'─'.repeat(inner + 2)}╯`]; }
 function stars(value) { const count = Math.max(0, Math.min(5, Math.round(Number(value || 0) / 2))); if (termuxMode) return '⭐'.repeat(count) + '☆'.repeat(5 - count); return yellow('★'.repeat(count)) + muted('☆'.repeat(5 - count)); }
 function tabName(tab) { return ['Home', 'Browse', 'Search', 'Library', 'Downloads', 'Settings'][tab]; }
 function formatLabel(game) { return String(game.extension || 'unknown').replace(/^\./, '').toUpperCase(); }
@@ -89,18 +89,16 @@ export async function runTui({ games, offline = false }, initialSettings = {}) {
         `${accent('◈')} ${selected.name}`,
         `${accent('Platform:')} ${selected.platform}    ${purple('Format:')} ${formatLabel(selected)}    ${yellow('Rating:')} ${stars(selected.rating)} ${selected.ratingLabel}`,
         `${accent('Genre:')} ${selected.genre}    ${purple('Size:')} ${selected.size}`,
+        state.message ? `${accent('Status:')} ${state.message}` : `${accent('Status:')} Ready · press D to download`,
+        progressLine(state.progress),
+        state.filePath ? `${accent('Saved file:')} ${state.filePath}` : '',
         `${accent('Compatibility:')} ${selected.compatibility || 'Not specified'}`,
         `${accent('Checksum:')} ${selected.checksum ? green('available ✓') : yellow('not provided')}`,
         `${accent('Destination:')} ${settings.downloadDirectory || getDefaultDownloadDirectory()}`,
-        progressLine(state.progress),
-        state.filePath ? `${accent('Saved file:')} ${state.filePath}` : '',
         '',
         clean(selected.description) || muted('No description available.'),
-        '',
-        state.message ? `${accent('Status:')} ${state.message}` : '',
-        `${accent('D')} download    ${accent('F')} favorite    ${accent('W')} wishlist    ${accent('Esc')} back`,
       ];
-      const detailOutput = [`${accent('FALIZ GAMES')}  ${muted('/// GAME CARD')}`, '', ...box('GAME DETAILS', detailLines), '', muted('↑↓ change game  D download  F favorite  W wishlist  Esc back  Q quit')];
+      const detailOutput = [`${accent('FALIZ GAMES')}  ${muted('/// GAME CARD')}`, '', ...box('GAME DETAILS', detailLines, width() - 4, Math.max(5, height() - 9)), '', muted('↑↓ change game  D download  F favorite  W wishlist  Esc back  Q quit')];
       process.stdout.write(`${ESC}2J${ESC}H${detailOutput.slice(0, height() - 1).join('\n')}`);
       return;
     }

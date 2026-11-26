@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.5 — 2026-11-26
+
+### Fixed
+
+- Made detail-card height responsive so actions remain visible on narrow Termux screens.
+- Prioritized status, progress bar, and saved path before long metadata and descriptions.
+- Kept download actions in a stable footer instead of allowing them to be clipped inside the game card.
+
+### Release status
+
+Verified locally. GitHub deployment and npm publication are pending.
+
 ## 0.5.4 — 2026-11-26
 
 ### Fixed

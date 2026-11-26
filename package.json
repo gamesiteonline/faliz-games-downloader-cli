@@ -1,6 +1,6 @@
 {
   "name": "faliz-games-downloader-cli",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "A polished terminal game catalog and authorized file downloader.",
   "type": "module",
   "main": "src/index.js",
